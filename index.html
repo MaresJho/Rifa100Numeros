@@ -21,38 +21,10 @@
         <i class="bi bi-ticket-perforated-fill me-2"></i>Rifa Virtual
       </a>
 
-      <button class="navbar-toggler border-0" type="button" data-bs-toggle="collapse" data-bs-target="#navContent" aria-controls="navContent" aria-expanded="false" aria-label="Mostrar menú">
-        <span class="navbar-toggler-icon"></span>
-      </button>
-
-      <div class="collapse navbar-collapse justify-content-end" id="navContent">
-        <div class="d-flex flex-column flex-md-row align-items-start align-items-md-center gap-2 gap-md-3 mt-2 mt-md-0">
-
-          <!-- Estado: SIN sesión iniciada -->
-          <div id="navGuestControls" class="d-flex flex-wrap align-items-center gap-2">
-            <button type="button" class="btn btn-light btn-sm rounded-3 fw-semibold" id="btnAbrirLogin">
-              <i class="bi bi-box-arrow-in-right me-1"></i>Iniciar sesión
-            </button>
-            <a href="admin.html" class="btn btn-outline-light btn-sm rounded-3 fw-semibold" id="btnAdminLogin">
-              <i class="bi bi-shield-lock-fill me-1"></i>Panel Administrador
-            </a>
-          </div>
-
-          <!-- Estado: CON sesión iniciada -->
-          <div id="navUserControls" class="d-none d-flex flex-wrap align-items-center gap-2">
-            <span class="user-pill">
-              <i class="bi bi-person-circle me-1"></i>
-              <span id="navUserName">Usuario</span>
-            </span>
-            <button type="button" class="btn btn-warning btn-sm rounded-3 fw-semibold text-dark" id="btnMisNumeros">
-              <i class="bi bi-ticket-fill me-1"></i>Mis números <span class="badge bg-dark text-white rounded-pill ms-1" id="badgeMisNumerosCount">0</span>
-            </button>
-            <button type="button" class="btn btn-danger btn-sm rounded-3 fw-semibold" id="btnCerrarSesion">
-              <i class="bi bi-box-arrow-right me-1"></i>Finalizar sesión
-            </button>
-          </div>
-
-        </div>
+      <div class="d-flex align-items-center gap-2">
+        <a href="admin.html" class="btn btn-outline-light btn-sm rounded-3 fw-semibold" id="btnAdminLogin">
+          <i class="bi bi-shield-lock-fill me-1"></i>Panel Administrador
+        </a>
       </div>
     </div>
   </nav>
@@ -61,7 +33,7 @@
   <section class="hero-section text-center py-5">
     <div class="container">
       <h1 class="display-5 fw-bold text-white mb-2">🎉 ¡Participa y Gana!</h1>
-      <p class="text-white-50 mb-4 fs-5">Números del <strong>00</strong> al <strong>99</strong>. Selecciona tu número favorito y regístrate para el sorteo.</p>
+      <p class="text-white-50 mb-4 fs-5">Números del <strong>00</strong> al <strong>99</strong>. Selecciona tu número, ingresa tus datos y tu referencia de pago.</p>
 
       <!-- Tarjeta visual del premio e información del sorteo -->
       <div class="premio-banner mx-auto mb-4 text-start">
@@ -128,15 +100,18 @@
       <div class="card shadow-sm border-0 rounded-4">
         <div class="card-body p-4">
           <div class="d-flex flex-column flex-sm-row justify-content-between align-items-center gap-2 mb-4">
-            <h5 class="fw-semibold mb-0 text-muted">
-              <i class="bi bi-grid-3x3-gap-fill me-2"></i>Elige tu número (00 al 99)
-            </h5>
+            <div>
+              <h5 class="fw-semibold mb-0 text-muted">
+                <i class="bi bi-grid-3x3-gap-fill me-2"></i>Elige tu número (00 al 99)
+              </h5>
+              <small class="text-muted">Haz clic en cualquier número verde para seleccionarlo y registrar tu pago.</small>
+            </div>
             <div class="d-flex align-items-center gap-3">
               <span class="badge-legend-dark">
                 <span class="dot dot-available"></span> Disponible
               </span>
               <span class="badge-legend-dark">
-                <span class="dot dot-reserved"></span> Reservado (Pendiente)
+                <span class="dot dot-reserved"></span> Reservado
               </span>
               <span class="badge-legend-dark">
                 <span class="dot dot-sold"></span> Pagado
@@ -151,50 +126,6 @@
       </div>
     </div>
   </section>
-
-  <!-- MODAL MIS NÚMEROS (Ver mis números, estado de pago y liberar si no está pago) -->
-  <div class="modal fade" id="misNumerosModal" tabindex="-1" aria-labelledby="misNumerosModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered modal-lg">
-      <div class="modal-content border-0 rounded-4 shadow-lg">
-        <div class="modal-header border-0 px-4 pt-4 pb-0">
-          <div>
-            <h5 class="modal-title fw-bold" id="misNumerosModalLabel">
-              <i class="bi bi-ticket-perforated-fill me-2 text-warning"></i>Mis Números Seleccionados
-            </h5>
-            <p class="text-muted small mb-0">Revisa tus números reservados y pagados. Puedes liberar los números que aún no hayas pagado.</p>
-          </div>
-          <button type="button" class="btn-close ms-auto" data-bs-dismiss="modal" aria-label="Cerrar"></button>
-        </div>
-
-        <div class="modal-body px-4 py-3">
-          <div id="sinNumerosAlert" class="alert alert-light border text-center py-4 rounded-3 d-none">
-            <i class="bi bi-emoji-neutral text-muted" style="font-size: 2.5rem;"></i>
-            <p class="text-muted mt-2 mb-0">Aún no has seleccionado ningún número. ¡Haz clic en cualquiera disponible en la grilla!</p>
-          </div>
-
-          <div class="table-responsive" id="tablaMisNumerosContainer">
-            <table class="table table-hover align-middle mb-0">
-              <thead class="table-light">
-                <tr>
-                  <th scope="col">Número</th>
-                  <th scope="col">Carrera y Grupo</th>
-                  <th scope="col">Estado</th>
-                  <th scope="col" class="text-end">Acción</th>
-                </tr>
-              </thead>
-              <tbody id="misNumerosTbody">
-                <!-- Generado por JS -->
-              </tbody>
-            </table>
-          </div>
-        </div>
-
-        <div class="modal-footer border-0 px-4 pb-4 pt-0">
-          <button type="button" class="btn btn-secondary rounded-3 px-4" data-bs-dismiss="modal">Cerrar</button>
-        </div>
-      </div>
-    </div>
-  </div>
 
   <!-- MODAL VER PREMIO (solo visualización) -->
   <div class="modal fade" id="verPremioModal" tabindex="-1" aria-labelledby="verPremioModalLabel" aria-hidden="true">
@@ -241,132 +172,7 @@
     </div>
   </div>
 
-  <!-- MODAL INICIAR SESIÓN (Tipo y número de documento) -->
-  <div class="modal fade" id="loginModal" tabindex="-1" aria-labelledby="loginModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered">
-      <div class="modal-content border-0 rounded-4 shadow-lg">
-        <div class="modal-header border-0 px-4 pt-4 pb-0">
-          <div>
-            <h5 class="modal-title fw-bold" id="loginModalLabel">
-              <i class="bi bi-person-badge-fill me-2 text-primary"></i>Iniciar Sesión
-            </h5>
-            <p class="text-muted small mb-0">Ingresa con tu tipo y número de documento para reservar números.</p>
-          </div>
-          <button type="button" class="btn-close ms-auto" data-bs-dismiss="modal" aria-label="Cerrar"></button>
-        </div>
-
-        <div class="modal-body px-4 pt-3 pb-2">
-          <div id="loginErrorAlert" class="alert alert-danger py-2 small d-none" role="alert"></div>
-
-          <form id="loginForm" novalidate>
-            <div class="mb-3">
-              <label for="loginTipoDoc" class="form-label fw-semibold">Tipo de documento <span class="text-danger">*</span></label>
-              <select class="form-select rounded-3" id="loginTipoDoc" required>
-                <option value="">Selecciona un tipo...</option>
-                <option value="CC">Cédula de Ciudadanía (CC)</option>
-                <option value="TI">Tarjeta de Identidad (TI)</option>
-                <option value="CE">Cédula de Extranjería (CE)</option>
-                <option value="PP">Pasaporte</option>
-              </select>
-              <div class="invalid-feedback">Selecciona tu tipo de documento.</div>
-            </div>
-
-            <div class="mb-3">
-              <label for="loginNumDoc" class="form-label fw-semibold">Número de documento <span class="text-danger">*</span></label>
-              <input type="text" class="form-control rounded-3" id="loginNumDoc" placeholder="Ej: 1023456789" required/>
-              <div class="invalid-feedback">Ingresa tu número de documento.</div>
-            </div>
-
-            <button type="submit" class="btn btn-primary w-100 rounded-3 fw-semibold py-2">
-              <i class="bi bi-box-arrow-in-right me-1"></i>Ingresar
-            </button>
-          </form>
-
-          <hr class="my-3"/>
-          <div class="text-center">
-            <span class="text-muted small">¿Aún no estás registrado?</span>
-            <button type="button" class="btn btn-link btn-sm fw-semibold text-decoration-none p-0 ms-1" id="btnIrARegistro">
-              Regístrate aquí
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- MODAL REGISTRO DE USUARIO -->
-  <div class="modal fade" id="registroUsuarioModal" tabindex="-1" aria-labelledby="registroUsuarioModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered">
-      <div class="modal-content border-0 rounded-4 shadow-lg">
-        <div class="modal-header border-0 px-4 pt-4 pb-0">
-          <div>
-            <h5 class="modal-title fw-bold" id="registroUsuarioModalLabel">
-              <i class="bi bi-person-plus-fill me-2 text-primary"></i>Crear Cuenta
-            </h5>
-            <p class="text-muted small mb-0">Regístrate una sola vez; tu sesión iniciará automáticamente.</p>
-          </div>
-          <button type="button" class="btn-close ms-auto" data-bs-dismiss="modal" aria-label="Cerrar"></button>
-        </div>
-
-        <div class="modal-body px-4 pt-3 pb-2">
-          <div id="regUserErrorAlert" class="alert alert-danger py-2 small d-none" role="alert"></div>
-
-          <form id="registroUsuarioForm" novalidate>
-            <div class="mb-3">
-              <label for="regNombre" class="form-label fw-semibold">Nombre completo <span class="text-danger">*</span></label>
-              <input type="text" class="form-control rounded-3" id="regNombre" placeholder="Ej: Juan Pérez" required/>
-              <div class="invalid-feedback">Por favor ingresa tu nombre completo.</div>
-            </div>
-
-            <div class="row g-2 mb-3">
-              <div class="col-sm-5">
-                <label for="regTipoDoc" class="form-label fw-semibold">Tipo doc. <span class="text-danger">*</span></label>
-                <select class="form-select rounded-3" id="regTipoDoc" required>
-                  <option value="">Selecciona...</option>
-                  <option value="CC">CC</option>
-                  <option value="TI">TI</option>
-                  <option value="CE">CE</option>
-                  <option value="PP">Pasaporte</option>
-                </select>
-                <div class="invalid-feedback">Selecciona el tipo.</div>
-              </div>
-              <div class="col-sm-7">
-                <label for="regNumDoc" class="form-label fw-semibold">Número de documento <span class="text-danger">*</span></label>
-                <input type="text" class="form-control rounded-3" id="regNumDoc" placeholder="Ej: 1023456789" required/>
-                <div class="invalid-feedback">Ingresa tu documento.</div>
-              </div>
-            </div>
-
-            <div class="mb-3">
-              <label for="regTelefono" class="form-label fw-semibold">Teléfono <span class="text-danger">*</span></label>
-              <input type="tel" class="form-control rounded-3" id="regTelefono" placeholder="Ej: 3001234567" required/>
-              <div class="invalid-feedback">Por favor ingresa tu teléfono.</div>
-            </div>
-
-            <div class="mb-3">
-              <label for="regEmail" class="form-label fw-semibold">Correo electrónico</label>
-              <input type="email" class="form-control rounded-3" id="regEmail" placeholder="Ej: juan@correo.com"/>
-              <div class="invalid-feedback">Ingresa un correo válido.</div>
-            </div>
-
-            <button type="submit" class="btn btn-primary w-100 rounded-3 fw-semibold py-2">
-              <i class="bi bi-check-circle me-1"></i>Registrarse e iniciar sesión
-            </button>
-          </form>
-
-          <hr class="my-3"/>
-          <div class="text-center">
-            <span class="text-muted small">¿Ya tienes cuenta?</span>
-            <button type="button" class="btn btn-link btn-sm fw-semibold text-decoration-none p-0 ms-1" id="btnVolverALogin">
-              Inicia sesión
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- MODAL DE RESERVA DE NÚMERO (Solo cuando está logueado) -->
+  <!-- MODAL DE SELECCIÓN DE NÚMERO (Sin requerir iniciar sesión) -->
   <div class="modal fade" id="registroModal" tabindex="-1" aria-labelledby="registroModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
       <div class="modal-content border-0 rounded-4 shadow-lg">
@@ -374,7 +180,7 @@
         <div class="modal-header border-0 pb-0 px-4 pt-4">
           <div>
             <h5 class="modal-title fw-bold" id="registroModalLabel">
-              <i class="bi bi-ticket-detailed-fill me-2 text-primary"></i>Reservar Número
+              <i class="bi bi-ticket-detailed-fill me-2 text-primary"></i>Seleccionar Número
             </h5>
             <p class="text-muted small mb-0">Estás seleccionando el número:</p>
             <div class="number-badge mt-1" id="selectedNumberBadge">—</div>
@@ -383,33 +189,63 @@
         </div>
 
         <div class="modal-body px-4 pb-2 pt-3">
-          <!-- Info del usuario logueado -->
-          <div class="alert alert-light border rounded-3 py-2 px-3 mb-3 small">
-            <div class="fw-semibold text-dark" id="reservaUserNombre">—</div>
-            <div class="text-muted" id="reservaUserDoc">—</div>
-          </div>
+          <div id="reservaErrorAlert" class="alert alert-danger py-2 small d-none" role="alert"></div>
 
           <form id="registroForm" novalidate>
+            <!-- Documento -->
             <div class="mb-3">
-              <label for="inputCarrera" class="form-label fw-semibold">Carrera <span class="text-danger">*</span></label>
-              <input type="text" class="form-control rounded-3" id="inputCarrera" placeholder="Ej: Ingeniería de Sistemas" required/>
-              <div class="invalid-feedback">Por favor ingresa tu carrera.</div>
+              <label for="inputDocumento" class="form-label fw-semibold">Número de Documento <span class="text-danger">*</span></label>
+              <input type="text" class="form-control rounded-3" id="inputDocumento" placeholder="Ej: 1023456789" required/>
+              <div class="invalid-feedback">Por favor ingresa tu número de documento.</div>
             </div>
 
+            <!-- Nombre -->
             <div class="mb-3">
-              <label for="inputGrupo" class="form-label fw-semibold">Grupo <span class="text-danger">*</span></label>
-              <input type="text" class="form-control rounded-3" id="inputGrupo" placeholder="Ej: Grupo A / 301" required/>
-              <div class="invalid-feedback">Por favor ingresa tu grupo.</div>
+              <label for="inputNombre" class="form-label fw-semibold">Nombre Completo <span class="text-danger">*</span></label>
+              <input type="text" class="form-control rounded-3" id="inputNombre" placeholder="Ej: Juan Pérez" required/>
+              <div class="invalid-feedback">Por favor ingresa tu nombre completo.</div>
+            </div>
+
+            <!-- Teléfono -->
+            <div class="mb-3">
+              <label for="inputTelefono" class="form-label fw-semibold">Teléfono / WhatsApp <span class="text-danger">*</span></label>
+              <input type="tel" class="form-control rounded-3" id="inputTelefono" placeholder="Ej: 3001234567" required/>
+              <div class="invalid-feedback">Por favor ingresa tu número telefónico.</div>
+            </div>
+
+            <!-- Referencia de Pago -->
+            <div class="mb-3">
+              <label for="inputRefPago" class="form-label fw-semibold">Referencia o Comprobante de Pago <span class="text-danger">*</span></label>
+              <input type="text" class="form-control rounded-3" id="inputRefPago" placeholder="Ej: N° Transacción Nequi / Daviplata / Recibo" required/>
+              <div class="invalid-feedback">Por favor ingresa la referencia del pago.</div>
+            </div>
+
+            <!-- Curso / Carrera (Opcional) -->
+            <div class="mb-3">
+              <label for="inputCurso" class="form-label fw-semibold text-muted">Curso o Programa <span class="badge bg-light text-muted border">Opcional</span></label>
+              <input type="text" class="form-control rounded-3" id="inputCurso" placeholder="Ej: 3B, Sistemas, Contaduría..."/>
+            </div>
+
+            <!-- Correo Electrónico (Opcional) -->
+            <div class="mb-3">
+              <label for="inputEmail" class="form-label fw-semibold text-muted">Correo Electrónico <span class="badge bg-light text-muted border">Opcional</span></label>
+              <input type="email" class="form-control rounded-3" id="inputEmail" placeholder="Ej: estudiante@correo.com"/>
+            </div>
+
+            <!-- Aviso Importante -->
+            <div class="alert alert-warning py-2 px-3 small rounded-3 mb-0 d-flex align-items-center gap-2">
+              <i class="bi bi-exclamation-triangle-fill fs-5 text-warning flex-shrink-0"></i>
+              <div>Una vez seleccionado y enviado, <strong>el número no podrá ser modificado ni cancelado</strong> por este medio.</div>
             </div>
           </form>
         </div>
 
-        <div class="modal-footer border-0 px-4 pb-4 pt-2 d-flex gap-2">
+        <div class="modal-footer border-0 px-4 pb-4 pt-3 d-flex gap-2">
           <button type="button" class="btn btn-light rounded-3 flex-fill" data-bs-dismiss="modal">
             <i class="bi bi-x-circle me-1"></i>Cancelar
           </button>
           <button type="button" class="btn btn-primary rounded-3 flex-fill fw-semibold" id="btnReservar">
-            <i class="bi bi-check-circle me-1"></i>Reservar Número
+            <i class="bi bi-check-circle me-1"></i>Confirmar Selección
           </button>
         </div>
 
@@ -419,15 +255,35 @@
 
   <!-- MODAL DE CONFIRMACIÓN -->
   <div class="modal fade" id="confirmModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered modal-sm">
+    <div class="modal-dialog modal-dialog-centered">
       <div class="modal-content border-0 rounded-4 shadow-lg text-center p-4">
         <div class="confirm-icon mb-3">🎉</div>
-        <h5 class="fw-bold">¡Número Reservado!</h5>
-        <p class="text-muted small mb-1">El número <strong id="confirmNumero"></strong> fue reservado para:</p>
-        <p class="fw-semibold mb-1" id="confirmNombre"></p>
-        <p class="text-muted small mb-3" id="confirmCarreraGrupo"></p>
-        <button type="button" class="btn btn-primary rounded-3 w-100" data-bs-dismiss="modal">
-          <i class="bi bi-emoji-smile me-1"></i>¡Genial!
+        <h4 class="fw-bold">¡Número Seleccionado con Éxito!</h4>
+        <p class="text-muted small mb-2">Tu participación ha sido registrada correctamente:</p>
+        
+        <div class="card bg-light border-0 rounded-3 p-3 mb-3 text-start">
+          <div class="d-flex justify-content-between align-items-center mb-1">
+            <span class="text-muted small">Número seleccionado:</span>
+            <span class="badge bg-primary fs-6" id="confirmNumero">--</span>
+          </div>
+          <div class="d-flex justify-content-between align-items-center mb-1">
+            <span class="text-muted small">Nombre:</span>
+            <strong id="confirmNombre" class="text-dark small">--</strong>
+          </div>
+          <div class="d-flex justify-content-between align-items-center mb-1">
+            <span class="text-muted small">Documento:</span>
+            <span id="confirmDoc" class="text-dark small">--</span>
+          </div>
+          <div class="d-flex justify-content-between align-items-center">
+            <span class="text-muted small">Ref. de pago:</span>
+            <span id="confirmRefPago" class="text-primary fw-bold small">--</span>
+          </div>
+        </div>
+
+        <p class="small text-muted mb-3">El administrador verificará tu comprobante para marcar el número como pagado oficialmente.</p>
+
+        <button type="button" class="btn btn-primary rounded-3 w-100 fw-semibold" data-bs-dismiss="modal">
+          <i class="bi bi-emoji-smile me-1"></i>Entendido
         </button>
       </div>
     </div>

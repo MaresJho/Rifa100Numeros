@@ -1,8 +1,6 @@
 // =========================================
-//  RIFA VIRTUAL — app.js (Conectado a Backend /api)
+//  RIFA VIRTUAL — app.js (Página Pública)
 // =========================================
-
-const INACTIVITY_LIMIT_MS = 5 * 60 * 1000; // 5 minutos
 
 // ─── ESTADO EN MEMORIA ──────────────────────────────────────────────
 let numeros = {};
@@ -17,21 +15,16 @@ let premioData = {
   detallesPremio: [],
   imagenes: [],
   fechaSorteo: '30 de Noviembre de 2026',
-  condicionesSorteo: 'Juega con los dos últimos números de la Lotería de Cundinamarca (sorteo de la noche).'
+  condicionesSorteo: 'Juega con los dos últimos números de la lotería oficial.'
 };
 
-let usuarioActual = null;
 let numeroSeleccionado = null;
-let inactivityTimer = null;
 
 // ─── REFERENCIAS A MODALES Y TOAST ──────────────────────────────────
-const verPremioModal       = new bootstrap.Modal(document.getElementById('verPremioModal'));
-const loginModal           = new bootstrap.Modal(document.getElementById('loginModal'));
-const registroUsuarioModal = new bootstrap.Modal(document.getElementById('registroUsuarioModal'));
-const registroModal        = new bootstrap.Modal(document.getElementById('registroModal'));
-const confirmModal         = new bootstrap.Modal(document.getElementById('confirmModal'));
-const misNumerosModal      = new bootstrap.Modal(document.getElementById('misNumerosModal'));
-const sessionToast         = new bootstrap.Toast(document.getElementById('sessionToast'));
+const verPremioModal = new bootstrap.Modal(document.getElementById('verPremioModal'));
+const registroModal  = new bootstrap.Modal(document.getElementById('registroModal'));
+const confirmModal   = new bootstrap.Modal(document.getElementById('confirmModal'));
+const sessionToast   = new bootstrap.Toast(document.getElementById('sessionToast'));
 
 function mostrarNotificacion(mensaje) {
   document.getElementById('sessionToastMsg').textContent = mensaje;
@@ -51,7 +44,6 @@ async function cargarDatosServidor() {
 
       renderPremioVisual();
       renderGrid();
-      actualizarMisNumerosBadge();
     }
   } catch (err) {
     console.warn('Usando estado local por fallo de red:', err.message);
@@ -60,9 +52,10 @@ async function cargarDatosServidor() {
 
 // ─── PREMIO E INFORMACIÓN DEL SORTEO ────────────────────────────────
 function renderPremioVisual() {
-  document.getElementById('premioNombreHero').textContent = premioData.nombrePremio || '🎁 Premio Principal';
-  document.getElementById('verPremioModalLabel').textContent = premioData.nombrePremio || '🎁 Premio Principal';
-  document.getElementById('premioNombreModal').textContent = premioData.nombrePremio || 'Premio Principal';
+  const nombre = premioData.nombrePremio || '🎁 Premio Principal';
+  document.getElementById('premioNombreHero').textContent = nombre;
+  document.getElementById('verPremioModalLabel').textContent = nombre;
+  document.getElementById('premioNombreModal').textContent = nombre;
   document.getElementById('premioDescModal').textContent = premioData.descPremio || '';
 
   document.getElementById('sorteoFechaTexto').textContent = premioData.fechaSorteo || 'Por definir';
@@ -145,352 +138,6 @@ document.getElementById('btnVerPremio').addEventListener('click', () => {
   verPremioModal.show();
 });
 
-// ─── SESIÓN DE USUARIO ──────────────────────────────────────────────
-function claveUsuario(tipoDoc, numDoc) {
-  return `${tipoDoc.trim().toUpperCase()}-${numDoc.trim()}`;
-}
-
-function iniciarSesion(usuario) {
-  usuarioActual = usuario;
-  localStorage.setItem('rifaSesionUsuario', JSON.stringify({
-    usuario,
-    lastActivity: Date.now()
-  }));
-  actualizarUISesion();
-  actualizarMisNumerosBadge();
-  reiniciarTemporizadorInactividad();
-}
-
-function cerrarSesion(porInactividad = false) {
-  usuarioActual = null;
-  localStorage.removeItem('rifaSesionUsuario');
-  if (inactivityTimer) {
-    clearTimeout(inactivityTimer);
-    inactivityTimer = null;
-  }
-
-  registroModal.hide();
-  misNumerosModal.hide();
-  actualizarUISesion();
-
-  if (porInactividad) {
-    mostrarNotificacion('Tu sesión se cerró automáticamente tras 5 minutos de inactividad.');
-  } else {
-    mostrarNotificacion('Sesión finalizada correctamente.');
-  }
-}
-
-function reiniciarTemporizadorInactividad() {
-  if (!usuarioActual) return;
-
-  localStorage.setItem('rifaSesionUsuario', JSON.stringify({
-    usuario: usuarioActual,
-    lastActivity: Date.now()
-  }));
-
-  if (inactivityTimer) clearTimeout(inactivityTimer);
-  inactivityTimer = setTimeout(() => {
-    cerrarSesion(true);
-  }, INACTIVITY_LIMIT_MS);
-}
-
-function restaurarSesion() {
-  const guardado = localStorage.getItem('rifaSesionUsuario');
-  if (!guardado) {
-    actualizarUISesion();
-    return;
-  }
-
-  try {
-    const sesion = JSON.parse(guardado);
-    const transcurrido = Date.now() - (sesion.lastActivity || 0);
-    if (sesion.usuario && transcurrido < INACTIVITY_LIMIT_MS) {
-      usuarioActual = sesion.usuario;
-      actualizarUISesion();
-      actualizarMisNumerosBadge();
-      inactivityTimer = setTimeout(() => {
-        cerrarSesion(true);
-      }, INACTIVITY_LIMIT_MS - transcurrido);
-    } else {
-      localStorage.removeItem('rifaSesionUsuario');
-      actualizarUISesion();
-    }
-  } catch (e) {
-    localStorage.removeItem('rifaSesionUsuario');
-    actualizarUISesion();
-  }
-}
-
-function actualizarUISesion() {
-  const guestControls = document.getElementById('navGuestControls');
-  const userControls  = document.getElementById('navUserControls');
-  const userNameEl    = document.getElementById('navUserName');
-
-  if (usuarioActual) {
-    guestControls.classList.add('d-none');
-    userControls.classList.remove('d-none');
-    userNameEl.textContent = usuarioActual.nombre;
-    actualizarMisNumerosBadge();
-  } else {
-    guestControls.classList.remove('d-none');
-    userControls.classList.add('d-none');
-    userNameEl.textContent = '';
-  }
-}
-
-['click', 'mousemove', 'keydown', 'scroll', 'touchstart'].forEach(evt => {
-  document.addEventListener(evt, () => {
-    if (usuarioActual) reiniciarTemporizadorInactividad();
-  }, { passive: true });
-});
-
-// ─── MIS NÚMEROS: VER Y LIBERAR ─────────────────────────────────────
-function obtenerNumerosDeUsuario(usuario) {
-  if (!usuario) return [];
-  const keyActual = claveUsuario(usuario.tipoDoc, usuario.numDoc);
-  const lista = [];
-
-  for (let i = 0; i < 100; i++) {
-    const numStr = String(i).padStart(2, '0');
-    const n = numeros[numStr];
-    if (n && n.participante) {
-      const keyPart = claveUsuario(n.participante.tipoDoc, n.participante.numDoc);
-      if (keyPart === keyActual) {
-        lista.push({
-          numero: numStr,
-          estado: n.estado,
-          carrera: n.participante.carrera || 'N/A',
-          grupo: n.participante.grupo || 'N/A'
-        });
-      }
-    }
-  }
-  return lista;
-}
-
-function actualizarMisNumerosBadge() {
-  const badge = document.getElementById('badgeMisNumerosCount');
-  if (!badge) return;
-  if (!usuarioActual) {
-    badge.textContent = '0';
-    return;
-  }
-  const lista = obtenerNumerosDeUsuario(usuarioActual);
-  badge.textContent = String(lista.length);
-}
-
-function renderMisNumerosModal() {
-  if (!usuarioActual) return;
-  const lista = obtenerNumerosDeUsuario(usuarioActual);
-  const tbody = document.getElementById('misNumerosTbody');
-  const emptyAlert = document.getElementById('sinNumerosAlert');
-  const tableCont = document.getElementById('tablaMisNumerosContainer');
-
-  tbody.innerHTML = '';
-
-  if (lista.length === 0) {
-    emptyAlert.classList.remove('d-none');
-    tableCont.classList.add('d-none');
-    return;
-  }
-
-  emptyAlert.classList.add('d-none');
-  tableCont.classList.remove('d-none');
-
-  lista.forEach(item => {
-    const tr = document.createElement('tr');
-
-    const esPagado = item.estado === 'sold';
-    const estadoBadge = esPagado
-      ? `<span class="badge bg-danger"><i class="bi bi-check-circle-fill me-1"></i>Pagado</span>`
-      : `<span class="badge bg-warning text-dark"><i class="bi bi-clock-history me-1"></i>Reservado (Pendiente)</span>`;
-
-    const accionBtn = esPagado
-      ? `<span class="text-muted small"><i class="bi bi-lock-fill me-1"></i>No cancelable</span>`
-      : `<button type="button" class="btn btn-outline-danger btn-sm rounded-3 btn-liberar" data-num="${item.numero}">
-           <i class="bi bi-x-circle me-1"></i>Liberar número
-         </button>`;
-
-    tr.innerHTML = `
-      <td><span class="num-tag-badge">${item.numero}</span></td>
-      <td>
-        <div class="fw-semibold small text-dark">${item.carrera}</div>
-        <div class="text-muted small">Grupo: ${item.grupo}</div>
-      </td>
-      <td>${estadoBadge}</td>
-      <td class="text-end">${accionBtn}</td>
-    `;
-
-    tbody.appendChild(tr);
-  });
-
-  tbody.querySelectorAll('.btn-liberar').forEach(btn => {
-    btn.addEventListener('click', async (e) => {
-      const numStr = e.currentTarget.dataset.num;
-      await liberarNumeroUsuario(numStr);
-    });
-  });
-}
-
-async function liberarNumeroUsuario(numStr) {
-  if (!usuarioActual) return;
-
-  if (!confirm(`¿Estás seguro de que deseas liberar el número ${numStr}? Quedará disponible para que otra persona lo tome.`)) {
-    return;
-  }
-
-  try {
-    const res = await fetch('/api/liberar', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ numero: numStr, usuario: usuarioActual })
-    });
-
-    const data = await res.json();
-    if (!data.success) {
-      mostrarNotificacion(data.error || 'No se pudo liberar el número.');
-      return;
-    }
-
-    mostrarNotificacion(`Has liberado el número ${numStr}.`);
-    await cargarDatosServidor();
-    renderMisNumerosModal();
-  } catch (err) {
-    mostrarNotificacion('Error de conexión al liberar el número.');
-  }
-}
-
-document.getElementById('btnMisNumeros').addEventListener('click', async () => {
-  if (!usuarioActual) {
-    abrirModalLogin();
-    return;
-  }
-  await cargarDatosServidor();
-  renderMisNumerosModal();
-  misNumerosModal.show();
-});
-
-// ─── BOTONES LOGIN / LOGOUT ─────────────────────────────────────────
-document.getElementById('btnAbrirLogin').addEventListener('click', () => {
-  numeroSeleccionado = null;
-  abrirModalLogin();
-});
-
-document.getElementById('btnCerrarSesion').addEventListener('click', () => {
-  numeroSeleccionado = null;
-  cerrarSesion(false);
-});
-
-// ─── MODALES DE LOGIN Y REGISTRO CONTRA EL SERVIDOR (/api/usuarios) ─
-function abrirModalLogin() {
-  const form = document.getElementById('loginForm');
-  form.reset();
-  form.classList.remove('was-validated');
-  document.getElementById('loginErrorAlert').classList.add('d-none');
-  loginModal.show();
-}
-
-function abrirModalRegistroUsuario() {
-  const form = document.getElementById('registroUsuarioForm');
-  form.reset();
-  form.classList.remove('was-validated');
-  document.getElementById('regUserErrorAlert').classList.add('d-none');
-  registroUsuarioModal.show();
-}
-
-document.getElementById('btnIrARegistro').addEventListener('click', () => {
-  loginModal.hide();
-  setTimeout(() => abrirModalRegistroUsuario(), 250);
-});
-
-document.getElementById('btnVolverALogin').addEventListener('click', () => {
-  registroUsuarioModal.hide();
-  setTimeout(() => abrirModalLogin(), 250);
-});
-
-// Submit Login
-document.getElementById('loginForm').addEventListener('submit', async (e) => {
-  e.preventDefault();
-  const form = e.target;
-  const errorAlert = document.getElementById('loginErrorAlert');
-  errorAlert.classList.add('d-none');
-
-  form.classList.add('was-validated');
-  if (!form.checkValidity()) return;
-
-  const tipoDoc = document.getElementById('loginTipoDoc').value;
-  const numDoc  = document.getElementById('loginNumDoc').value.trim();
-
-  try {
-    const res = await fetch('/api/usuarios', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'login', tipoDoc, numDoc })
-    });
-
-    const data = await res.json();
-    if (!data.success) {
-      errorAlert.textContent = data.error || 'Credenciales incorrectas.';
-      errorAlert.classList.remove('d-none');
-      return;
-    }
-
-    iniciarSesion(data.usuario);
-    loginModal.hide();
-    mostrarNotificacion(`Bienvenido, ${data.usuario.nombre}`);
-
-    if (numeroSeleccionado !== null) {
-      setTimeout(() => abrirModalReserva(numeroSeleccionado), 250);
-    }
-  } catch (err) {
-    errorAlert.textContent = 'Error de conexión con el servidor.';
-    errorAlert.classList.remove('d-none');
-  }
-});
-
-// Submit Registro
-document.getElementById('registroUsuarioForm').addEventListener('submit', async (e) => {
-  e.preventDefault();
-  const form = e.target;
-  const errorAlert = document.getElementById('regUserErrorAlert');
-  errorAlert.classList.add('d-none');
-
-  form.classList.add('was-validated');
-  if (!form.checkValidity()) return;
-
-  const nombre   = document.getElementById('regNombre').value.trim();
-  const tipoDoc  = document.getElementById('regTipoDoc').value;
-  const numDoc   = document.getElementById('regNumDoc').value.trim();
-  const telefono = document.getElementById('regTelefono').value.trim();
-  const email    = document.getElementById('regEmail').value.trim();
-
-  try {
-    const res = await fetch('/api/usuarios', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'register', nombre, tipoDoc, numDoc, telefono, email })
-    });
-
-    const data = await res.json();
-    if (!data.success) {
-      errorAlert.textContent = data.error || 'Error al crear la cuenta.';
-      errorAlert.classList.remove('d-none');
-      return;
-    }
-
-    iniciarSesion(data.usuario);
-    registroUsuarioModal.hide();
-    mostrarNotificacion(`Cuenta creada. ¡Bienvenido, ${data.usuario.nombre}!`);
-
-    if (numeroSeleccionado !== null) {
-      setTimeout(() => abrirModalReserva(numeroSeleccionado), 250);
-    }
-  } catch (err) {
-    errorAlert.textContent = 'Error de conexión con el servidor.';
-    errorAlert.classList.remove('d-none');
-  }
-});
-
 // ─── GRILLA DE NÚMEROS (00 AL 99) ───────────────────────────────────
 function renderGrid() {
   const grid = document.getElementById('numbersGrid');
@@ -505,13 +152,15 @@ function renderGrid() {
     btn.className   = `num-btn ${n.estado}`;
     btn.dataset.num = numStr;
 
-    if (n.participante) {
-      const estadoTxt = n.estado === 'reserved' ? 'Reservado (Pendiente)' : 'Pagado';
-      btn.title = `${estadoTxt}: ${n.participante.nombre}`;
-    }
-
     if (n.estado === 'available') {
-      btn.addEventListener('click', () => manejarClickNumero(numStr));
+      btn.title = `Número ${numStr}: Disponible para seleccionar`;
+      btn.addEventListener('click', () => abrirModalReserva(numStr));
+    } else {
+      const estadoTxt = n.estado === 'sold' ? 'Pagado / Vendido' : 'Reservado';
+      btn.title = `Número ${numStr}: ${estadoTxt}`;
+      btn.addEventListener('click', () => {
+        mostrarNotificacion(`El número ${numStr} ya se encuentra ${estadoTxt.toLowerCase()}.`);
+      });
     }
 
     grid.appendChild(btn);
@@ -534,56 +183,51 @@ function actualizarContadores() {
   document.getElementById('countSold').textContent      = sold;
 }
 
-function manejarClickNumero(numStr) {
-  numeroSeleccionado = numStr;
-  if (!usuarioActual) {
-    abrirModalLogin();
-    return;
-  }
-  abrirModalReserva(numStr);
-}
-
-// ─── MODAL DE RESERVA (CARRERA Y GRUPO) CONTRA /api/reservar ────────
+// ─── MODAL DE RESERVA / SELECCIÓN DE NÚMERO ─────────────────────────
 async function abrirModalReserva(numStr) {
-  if (!usuarioActual) {
-    abrirModalLogin();
-    return;
-  }
-
-  // Refrescar datos del servidor antes de abrir
+  // Refrescar en segundo plano para verificar si el número sigue disponible
   await cargarDatosServidor();
 
   if (numeros[numStr] && numeros[numStr].estado !== 'available') {
-    mostrarNotificacion(`El número ${numStr} ya fue reservado por otra persona.`);
+    mostrarNotificacion(`El número ${numStr} acaba de ser seleccionado por otra persona.`);
     renderGrid();
     return;
   }
 
   numeroSeleccionado = numStr;
   document.getElementById('selectedNumberBadge').textContent = numStr;
-  document.getElementById('reservaUserNombre').textContent = usuarioActual.nombre;
-  document.getElementById('reservaUserDoc').textContent = `${usuarioActual.tipoDoc}: ${usuarioActual.numDoc}`;
 
   const form = document.getElementById('registroForm');
   form.classList.remove('was-validated');
   form.reset();
 
+  const errAlert = document.getElementById('reservaErrorAlert');
+  errAlert.classList.add('d-none');
+  errAlert.textContent = '';
+
   registroModal.show();
 }
 
+// Submit Selección de Número
 document.getElementById('btnReservar').addEventListener('click', async () => {
-  if (!usuarioActual) {
-    registroModal.hide();
-    abrirModalLogin();
-    return;
-  }
-
   const form = document.getElementById('registroForm');
+  const errAlert = document.getElementById('reservaErrorAlert');
+  errAlert.classList.add('d-none');
+
   form.classList.add('was-validated');
   if (!form.checkValidity()) return;
 
-  const carrera = document.getElementById('inputCarrera').value.trim();
-  const grupo   = document.getElementById('inputGrupo').value.trim();
+  const documento      = document.getElementById('inputDocumento').value.trim();
+  const nombre         = document.getElementById('inputNombre').value.trim();
+  const telefono       = document.getElementById('inputTelefono').value.trim();
+  const referenciaPago = document.getElementById('inputRefPago').value.trim();
+  const curso          = document.getElementById('inputCurso').value.trim();
+  const email          = document.getElementById('inputEmail').value.trim();
+
+  const btnReservar = document.getElementById('btnReservar');
+  const btnOriginalText = btnReservar.innerHTML;
+  btnReservar.disabled = true;
+  btnReservar.innerHTML = `<span class="spinner-border spinner-border-sm me-1"></span>Procesando...`;
 
   try {
     const res = await fetch('/api/reservar', {
@@ -591,16 +235,21 @@ document.getElementById('btnReservar').addEventListener('click', async () => {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         numero: numeroSeleccionado,
-        usuario: usuarioActual,
-        carrera,
-        grupo
+        documento,
+        nombre,
+        telefono,
+        referenciaPago,
+        curso,
+        email
       })
     });
 
     const data = await res.json();
     if (!data.success) {
-      alert(data.error || 'No se pudo reservar el número.');
-      registroModal.hide();
+      errAlert.textContent = data.error || 'No se pudo seleccionar el número.';
+      errAlert.classList.remove('d-none');
+      btnReservar.disabled = false;
+      btnReservar.innerHTML = btnOriginalText;
       await cargarDatosServidor();
       return;
     }
@@ -609,22 +258,27 @@ document.getElementById('btnReservar').addEventListener('click', async () => {
     numeroSeleccionado = null;
     registroModal.hide();
 
+    // Llenar datos de confirmación
     document.getElementById('confirmNumero').textContent = numConfirmado;
-    document.getElementById('confirmNombre').textContent = usuarioActual.nombre;
-    document.getElementById('confirmCarreraGrupo').textContent = `${carrera} · Grupo ${grupo}`;
+    document.getElementById('confirmNombre').textContent = nombre;
+    document.getElementById('confirmDoc').textContent = documento;
+    document.getElementById('confirmRefPago').textContent = referenciaPago;
 
-    setTimeout(() => confirmModal.show(), 300);
+    setTimeout(() => confirmModal.show(), 250);
     await cargarDatosServidor();
   } catch (err) {
-    alert('Error de conexión al procesar la reserva.');
+    errAlert.textContent = 'Error de conexión al procesar la selección.';
+    errAlert.classList.remove('d-none');
+  } finally {
+    btnReservar.disabled = false;
+    btnReservar.innerHTML = btnOriginalText;
   }
 });
 
 // ─── INIT ────────────────────────────────────────────────────────────
-restaurarSesion();
 cargarDatosServidor();
 
-// Auto-refresco cada 15 segundos para ver números reservados por otros usuarios en vivo
+// Auto-refresco cada 15 segundos para ver números en vivo
 setInterval(() => {
   cargarDatosServidor();
 }, 15000);

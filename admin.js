@@ -182,10 +182,12 @@ function renderTablaNumeros() {
     if (filtroTxt) {
       const matchNum = numStr.includes(filtroTxt);
       const matchNom = p && p.nombre ? p.nombre.toLowerCase().includes(filtroTxt) : false;
-      const matchDoc = p && p.numDoc ? p.numDoc.toLowerCase().includes(filtroTxt) : false;
-      const matchCar = p && p.carrera ? p.carrera.toLowerCase().includes(filtroTxt) : false;
+      const matchDoc = p && (p.documento || p.numDoc) ? String(p.documento || p.numDoc).toLowerCase().includes(filtroTxt) : false;
+      const matchTel = p && p.telefono ? String(p.telefono).toLowerCase().includes(filtroTxt) : false;
+      const matchRef = p && p.referenciaPago ? String(p.referenciaPago).toLowerCase().includes(filtroTxt) : false;
+      const matchCur = p && (p.curso || p.carrera) ? String(p.curso || p.carrera).toLowerCase().includes(filtroTxt) : false;
 
-      if (!matchNum && !matchNom && !matchDoc && !matchCar) {
+      if (!matchNum && !matchNom && !matchDoc && !matchTel && !matchRef && !matchCur) {
         continue;
       }
     }
@@ -202,10 +204,12 @@ function renderTablaNumeros() {
       badgeEstado = `<span class="badge bg-danger-subtle text-danger border border-danger-subtle badge-status">🔴 Pagado (Vendido)</span>`;
     }
 
+    const docVal = p ? (p.documento || p.numDoc || '—') : '—';
     const partNombre = p ? `<strong class="text-dark">${p.nombre}</strong>` : `<span class="text-muted small">— Disponible —</span>`;
-    const partDoc    = p ? `<span class="small">${p.tipoDoc}: ${p.numDoc}</span>` : `<span class="text-muted small">—</span>`;
+    const partDoc    = p ? `<span class="small fw-semibold">${docVal}</span>` : `<span class="text-muted small">—</span>`;
     const partCont   = p ? `<div class="small">${p.telefono || '—'}</div><div class="text-muted small">${p.email || ''}</div>` : `<span class="text-muted small">—</span>`;
-    const partAcad   = p ? `<div class="small fw-semibold">${p.carrera || '—'}</div><div class="text-muted small">Grupo: ${p.grupo || '—'}</div>` : `<span class="text-muted small">—</span>`;
+    const partCurso  = p ? `<div class="small fw-semibold">${p.curso || p.carrera || '—'}</div>` : `<span class="text-muted small">—</span>`;
+    const partRef    = p && p.referenciaPago ? `<span class="badge bg-primary-subtle text-primary border border-primary-subtle fw-bold font-monospace">${p.referenciaPago}</span>` : `<span class="text-muted small">—</span>`;
 
     let botonesAccion = '';
 
@@ -239,7 +243,8 @@ function renderTablaNumeros() {
       <td>${partNombre}</td>
       <td>${partDoc}</td>
       <td>${partCont}</td>
-      <td>${partAcad}</td>
+      <td>${partCurso}</td>
+      <td>${partRef}</td>
       <td class="text-end">${botonesAccion}</td>
     `;
 
@@ -325,7 +330,7 @@ document.getElementById('filtroEstado').addEventListener('change', renderTablaNu
 // ─── EXPORTAR A EXCEL / CSV ─────────────────────────────────────────
 document.getElementById('btnExportarExcel').addEventListener('click', () => {
   let csvContent = '\uFEFF';
-  csvContent += 'Numero,Estado,Nombre,TipoDocumento,NumeroDocumento,Telefono,Email,Carrera,Grupo\n';
+  csvContent += 'Numero,Estado,Nombre,Documento,Telefono,Email,Curso,ReferenciaPago,FechaRegistro\n';
 
   for (let i = 0; i < 100; i++) {
     const numStr = String(i).padStart(2, '0');
@@ -334,14 +339,14 @@ document.getElementById('btnExportarExcel').addEventListener('click', () => {
 
     const estadoTexto = n.estado === 'sold' ? 'Pagado' : (n.estado === 'reserved' ? 'Reservado' : 'Disponible');
     const nombre = (p.nombre || '').replace(/"/g, '""');
-    const tipoDoc = p.tipoDoc || '';
-    const numDoc = p.numDoc || '';
-    const tel = p.telefono || '';
-    const email = p.email || '';
-    const carrera = (p.carrera || '').replace(/"/g, '""');
-    const grupo = (p.grupo || '').replace(/"/g, '""');
+    const documento = (p.documento || p.numDoc || '').replace(/"/g, '""');
+    const tel = (p.telefono || '').replace(/"/g, '""');
+    const email = (p.email || '').replace(/"/g, '""');
+    const curso = (p.curso || p.carrera || '').replace(/"/g, '""');
+    const refPago = (p.referenciaPago || '').replace(/"/g, '""');
+    const fecha = p.fechaReserva ? new Date(p.fechaReserva).toLocaleString('es-CO') : '';
 
-    csvContent += `"${numStr}","${estadoTexto}","${nombre}","${tipoDoc}","${numDoc}","${tel}","${email}","${carrera}","${grupo}"\n`;
+    csvContent += `"${numStr}","${estadoTexto}","${nombre}","${documento}","${tel}","${email}","${curso}","${refPago}","${fecha}"\n`;
   }
 
   const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });

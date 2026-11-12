@@ -12,10 +12,25 @@ module.exports = async (req, res) => {
   }
 
   try {
-    const { numero, usuario, carrera, grupo } = req.body || {};
+    const body = req.body || {};
+    const numero = body.numero;
+    
+    // Extracción de campos con retrocompatibilidad
+    const documento = (body.documento || body.numDoc || body.usuario?.numDoc || '').toString().trim();
+    const nombre = (body.nombre || body.usuario?.nombre || '').toString().trim();
+    const telefono = (body.telefono || body.usuario?.telefono || '').toString().trim();
+    const referenciaPago = (body.referenciaPago || body.refPago || body.comprobante || '').toString().trim();
+    
+    // Campos opcionales
+    const curso = (body.curso || body.carrera || body.grupo || body.usuario?.curso || '').toString().trim();
+    const email = (body.email || body.usuario?.email || '').toString().trim();
+    const tipoDoc = (body.tipoDoc || body.usuario?.tipoDoc || 'CC').toString().trim();
 
-    if (numero === undefined || numero === null || !usuario || !carrera || !grupo) {
-      return res.status(400).json({ success: false, error: 'Faltan campos obligatorios para la reserva.' });
+    if (numero === undefined || numero === null || !documento || !nombre || !telefono || !referenciaPago) {
+      return res.status(400).json({
+        success: false,
+        error: 'Los campos Documento, Nombre, Teléfono y Referencia de pago son obligatorios.'
+      });
     }
 
     const numStr = String(numero).padStart(2, '0');
@@ -30,21 +45,24 @@ module.exports = async (req, res) => {
     if (numActual.estado !== 'available') {
       return res.status(409).json({
         success: false,
-        error: `El número ${numStr} acaba de ser reservado por otro participante. Por favor selecciona otro.`
+        error: `El número ${numStr} ya no está disponible (fue seleccionado recientemente por otra persona). Por favor selecciona otro.`
       });
     }
 
-    // Guardar reserva
+    // Guardar reserva sin posibilidad de modificación desde el index
     numeros[numStr] = {
       estado: 'reserved',
       participante: {
-        nombre: usuario.nombre,
-        tipoDoc: usuario.tipoDoc,
-        numDoc: usuario.numDoc,
-        telefono: usuario.telefono,
-        email: usuario.email || '',
-        carrera: carrera.trim(),
-        grupo: grupo.trim(),
+        nombre,
+        documento,
+        numDoc: documento,
+        tipoDoc,
+        telefono,
+        referenciaPago,
+        curso: curso || 'N/A',
+        carrera: curso || 'N/A',
+        grupo: curso || 'N/A',
+        email,
         fechaReserva: new Date().toISOString()
       }
     };
@@ -53,12 +71,12 @@ module.exports = async (req, res) => {
 
     return res.status(200).json({
       success: true,
-      mensaje: `Número ${numStr} reservado exitosamente.`,
+      mensaje: `Número ${numStr} seleccionado exitosamente.`,
       numero: numStr,
       datos: numeros[numStr]
     });
   } catch (error) {
     console.error('Error en /api/reservar:', error);
-    return res.status(500).json({ success: false, error: 'Error del servidor al registrar la reserva.' });
+    return res.status(500).json({ success: false, error: 'Error del servidor al registrar la selección.' });
   }
 };
