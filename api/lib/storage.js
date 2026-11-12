@@ -1,8 +1,21 @@
+const { Redis } = require('@upstash/redis');
 const { encrypt, decrypt } = require('./crypto');
 
-// Detectar credenciales de Upstash Redis (proporcionadas automáticamente por la integración de Vercel)
-const REDIS_URL   = process.env.UPSTASH_REDIS_REST_URL || process.env.KV_REST_API_URL;
-const REDIS_TOKEN = process.env.UPSTASH_REDIS_REST_TOKEN || process.env.KV_REST_API_TOKEN;
+// Detectar automáticamente variables de Vercel (tanto KV_REST_API_* como UPSTASH_REDIS_REST_*)
+const url   = process.env.KV_REST_API_URL   || process.env.UPSTASH_REDIS_REST_URL;
+const token = process.env.KV_REST_API_TOKEN || process.env.UPSTASH_REDIS_REST_TOKEN;
+
+let redis = null;
+if (url && token) {
+  try {
+    redis = new Redis({ url, token });
+    console.log('[STORAGE] Conectado exitosamente a Upstash Redis con URL:', url);
+  } catch (err) {
+    console.error('[STORAGE] Error inicializando Upstash Redis client:', err.message);
+  }
+} else {
+  console.warn('[STORAGE] ADVERTENCIA: No se detectaron KV_REST_API_URL / TOKEN en las variables de entorno.');
+}
 
 // ─── Estructuras iniciales por defecto ──────────────────────────────
 function getInitialNumeros() {
@@ -27,65 +40,48 @@ function getInitialAdminConfig() {
   };
 }
 
-// ─── LECTURA CENTRALIZADA (UPSTASH REDIS REST API) ─────────────────
+// ─── LECTURA CENTRALIZADA DESDE UPSTASH ────────────────────────────
 async function getRegistro(tipo) {
-  const key = `rifa:${tipo}`;
+  const key = `rifa_db:${tipo}`;
 
-  if (REDIS_URL && REDIS_TOKEN) {
+  if (redis) {
     try {
-      const url = `${REDIS_URL}/get/${encodeURIComponent(key)}`;
-      const res = await fetch(url, {
-        headers: { Authorization: `Bearer ${REDIS_TOKEN}` }
-      });
-
-      if (res.ok) {
-        const json = await res.json();
-        const encryptedText = json.result;
-
-        if (encryptedText) {
-          const decrypted = decrypt(encryptedText);
-          if (decrypted) {
-            return JSON.parse(decrypted);
-          }
+      const encryptedText = await redis.get(key);
+      if (encryptedText) {
+        const decrypted = decrypt(encryptedText);
+        if (decrypted) {
+          return JSON.parse(decrypted);
         }
       }
     } catch (err) {
-      console.warn(`[UPSTASH] Error leyendo ${key}:`, err.message);
+      console.error(`[STORAGE] Error leyendo ${key} de Redis:`, err.message);
     }
   }
 
-  // Fallback con datos por defecto si la base está recién creada o vacía
+  // Fallback con valores iniciales
   if (tipo === 'usuarios') return {};
   if (tipo === 'numeros') return getInitialNumeros();
   if (tipo === 'admin') return getInitialAdminConfig();
 }
 
-// ─── ESCRITURA CENTRALIZADA (UPSTASH REDIS REST API) ────────────────
+// ─── ESCRITURA CENTRALIZADA EN UPSTASH ─────────────────────────────
 async function saveRegistro(tipo, data) {
-  const key = `rifa:${tipo}`;
+  const key = `rifa_db:${tipo}`;
   const jsonStr = JSON.stringify(data);
   const encryptedText = encrypt(jsonStr);
 
-  if (REDIS_URL && REDIS_TOKEN) {
+  if (redis) {
     try {
-      const url = `${REDIS_URL}/set/${encodeURIComponent(key)}`;
-      const res = await fetch(url, {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${REDIS_TOKEN}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(encryptedText)
-      });
-
-      if (res.ok) {
-        return true;
-      }
+      await redis.set(key, encryptedText);
+      console.log(`[STORAGE] Registro ${key} guardado exitosamente en Upstash.`);
+      return true;
     } catch (err) {
-      console.error(`[UPSTASH] Error guardando ${key}:`, err.message);
+      console.error(`[STORAGE] Error guardando ${key} en Redis:`, err.message);
+      return false;
     }
   }
 
+  console.warn(`[STORAGE] No se pudo guardar ${key} porque no hay cliente Redis activo.`);
   return false;
 }
 

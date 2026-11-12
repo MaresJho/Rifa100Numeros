@@ -51,13 +51,14 @@ async function cargarDatosServidor() {
   }
 }
 
-// ─── AUTENTICACIÓN ADMIN ────────────────────────────────────────────
+// ─── AUTENTICACIÓN ADMIN (PERSISTENTE EN LOCALSTORAGE) ──────────────
 function verificarSesionAdmin() {
-  const guardado = sessionStorage.getItem('adminCreds');
+  const guardado = localStorage.getItem('adminCredsRifa');
   if (guardado) {
     try {
-      adminCreds = JSON.parse(guardado);
-      if (adminCreds.user && adminCreds.password) {
+      const parsed = JSON.parse(guardado);
+      if (parsed.user && parsed.password) {
+        adminCreds = parsed;
         mostrarDashboard();
         cargarDatosServidor();
         return;
@@ -80,7 +81,7 @@ function mostrarDashboard() {
 }
 
 function cerrarSesionAdmin() {
-  sessionStorage.removeItem('adminCreds');
+  localStorage.removeItem('adminCredsRifa');
   adminCreds = { user: '', password: '' };
   mostrarLogin();
 }
@@ -102,7 +103,7 @@ document.getElementById('adminLoginForm').addEventListener('submit', async (e) =
     const data = await res.json();
     if (data.success) {
       adminCreds = { user: u, password: p };
-      sessionStorage.setItem('adminCreds', JSON.stringify(adminCreds));
+      localStorage.setItem('adminCredsRifa', JSON.stringify(adminCreds));
       mostrarDashboard();
       await cargarDatosServidor();
       notificar('¡Bienvenido al Panel de Administración!');
@@ -171,7 +172,6 @@ function renderTablaNumeros() {
     countFiltrados++;
     const tr = document.createElement('tr');
 
-    // Badge Estado
     let badgeEstado = '';
     if (item.estado === 'available') {
       badgeEstado = `<span class="badge bg-success-subtle text-success border border-success-subtle badge-status">🟢 Disponible</span>`;
@@ -348,6 +348,13 @@ function cargarFormularioConfig() {
 
 document.getElementById('formConfigRifa').addEventListener('submit', async (e) => {
   e.preventDefault();
+  e.stopPropagation();
+
+  const btnSubmit = e.target.querySelector('button[type="submit"]');
+  const btnOriginalText = btnSubmit.innerHTML;
+  btnSubmit.disabled = true;
+  btnSubmit.innerHTML = `<span class="spinner-border spinner-border-sm me-1"></span>Guardando...`;
+
   const nuevoPremio = {
     nombre: document.getElementById('cfgPremioNombre').value.trim(),
     desc: document.getElementById('cfgPremioDesc').value.trim(),
@@ -372,13 +379,16 @@ document.getElementById('formConfigRifa').addEventListener('submit', async (e) =
 
     const data = await res.json();
     if (data.success) {
-      notificar('Información de la rifa actualizada en el servidor.');
+      notificar('✅ ¡Información de la rifa guardada correctamente en el servidor!');
       await cargarDatosServidor();
     } else {
-      notificar(data.error || 'Error al guardar configuración.');
+      notificar('❌ ' + (data.error || 'Error al guardar configuración.'));
     }
   } catch (err) {
-    notificar('Error de conexión.');
+    notificar('❌ Error de conexión al guardar.');
+  } finally {
+    btnSubmit.disabled = false;
+    btnSubmit.innerHTML = btnOriginalText;
   }
 });
 
@@ -419,11 +429,11 @@ document.getElementById('cfgInputImagenes').addEventListener('change', function 
 
       const data = await res.json();
       if (data.success) {
-        notificar('Imágenes del premio actualizadas en el servidor.');
+        notificar('✅ Imágenes del premio actualizadas en el servidor.');
         renderPreviewImagenes();
       }
     } catch (err) {
-      notificar('Error al guardar imágenes.');
+      notificar('❌ Error al guardar imágenes.');
     }
   });
 
