@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Panel de Administración — Rifa Virtual</title>
+
+  <!-- Bootstrap 5 -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet"/>
+  <!-- Bootstrap Icons -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet"/>
+  <!-- Custom CSS -->
+  <link rel="stylesheet" href="style.css"/>
+  <style>
+    .admin-nav {
+      background: #1e1b4b;
+      box-shadow: 0 2px 10px rgba(0,0,0,.2);
+    }
+    .kpi-card {
+      border: 0;
+      border-radius: 14px;
+      box-shadow: 0 2px 10px rgba(0,0,0,.04);
+      transition: transform .15s;
+    }
+    .kpi-card:hover { transform: translateY(-2px); }
+    .badge-status { font-size: .8rem; padding: 5px 10px; border-radius: 6px; }
+  </style>
+</head>
+<body class="bg-light">
+
+  <!-- NAVBAR ADMIN -->
+  <nav class="navbar navbar-expand-lg navbar-dark admin-nav">
+    <div class="container-fluid px-4">
+      <a class="navbar-brand fw-bold" href="#">
+        <i class="bi bi-shield-lock-fill text-warning me-2"></i>Panel de Administración — Rifa Virtual
+      </a>
+
+      <div class="d-flex align-items-center gap-2">
+        <a href="index.html" class="btn btn-outline-light btn-sm rounded-3">
+          <i class="bi bi-box-arrow-up-right me-1"></i>Ver página pública
+        </a>
+        <button id="btnAdminLogout" class="btn btn-danger btn-sm rounded-3 d-none">
+          <i class="bi bi-box-arrow-right me-1"></i>Cerrar sesión Admin
+        </button>
+      </div>
+    </div>
+  </nav>
+
+  <!-- LOGIN DE ADMINISTRADOR (Si no está autenticado) -->
+  <div id="adminLoginSection" class="container py-5">
+    <div class="row justify-content-center">
+      <div class="col-md-5 col-lg-4">
+        <div class="card border-0 rounded-4 shadow-sm p-4">
+          <div class="text-center mb-4">
+            <div class="rounded-circle bg-primary bg-opacity-10 d-inline-flex p-3 text-primary mb-2">
+              <i class="bi bi-shield-lock fs-1"></i>
+            </div>
+            <h4 class="fw-bold">Acceso Administrativo</h4>
+            <p class="text-muted small">Ingresa las credenciales de gestión de la rifa.</p>
+          </div>
+
+          <div id="adminLoginError" class="alert alert-danger small py-2 d-none"></div>
+
+          <form id="adminLoginForm">
+            <div class="mb-3">
+              <label for="adminUserInput" class="form-label fw-semibold small">Usuario</label>
+              <input type="text" class="form-control rounded-3" id="adminUserInput" placeholder="Ingresa tu usuario" required/>
+            </div>
+            <div class="mb-3">
+              <label for="adminPassInput" class="form-label fw-semibold small">Contraseña</label>
+              <input type="password" class="form-control rounded-3" id="adminPassInput" placeholder="••••••••" required/>
+            </div>
+            <button type="submit" class="btn btn-primary w-100 rounded-3 fw-semibold py-2">
+              <i class="bi bi-box-arrow-in-right me-1"></i>Ingresar al Panel
+            </button>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- CONTENIDO PRINCIPAL DEL ADMIN (Solo cuando está autenticado) -->
+  <div id="adminDashboardSection" class="container-fluid px-4 py-4 d-none">
+
+    <!-- KPI CARDS -->
+    <div class="row g-3 mb-4">
+      <div class="col-6 col-md-3">
+        <div class="card kpi-card bg-white p-3">
+          <div class="text-muted small fw-semibold">Total Números</div>
+          <div class="h3 fw-bold text-dark mb-0">100</div>
+          <div class="small text-muted">00 al 99</div>
+        </div>
+      </div>
+      <div class="col-6 col-md-3">
+        <div class="card kpi-card bg-white p-3 border-start border-4 border-success">
+          <div class="text-muted small fw-semibold">Disponibles</div>
+          <div class="h3 fw-bold text-success mb-0" id="kpiDisponibles">0</div>
+          <div class="small text-muted">Libres para venta</div>
+        </div>
+      </div>
+      <div class="col-6 col-md-3">
+        <div class="card kpi-card bg-white p-3 border-start border-4 border-warning">
+          <div class="text-muted small fw-semibold">Reservados (Pendientes)</div>
+          <div class="h3 fw-bold text-warning mb-0" id="kpiReservados">0</div>
+          <div class="small text-muted">Esperando pago</div>
+        </div>
+      </div>
+      <div class="col-6 col-md-3">
+        <div class="card kpi-card bg-white p-3 border-start border-4 border-danger">
+          <div class="text-muted small fw-semibold">Pagados (Vendidos)</div>
+          <div class="h3 fw-bold text-danger mb-0" id="kpiPagados">0</div>
+          <div class="small text-muted">Confirmados</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- PESTAÑAS DEL PANEL ADMIN -->
+    <ul class="nav nav-pills mb-4 gap-2" id="adminTabs" role="tablist">
+      <li class="nav-item">
+        <button class="nav-link active rounded-3 fw-semibold" id="tab-numeros-btn" data-bs-toggle="pill" data-bs-target="#tab-numeros">
+          <i class="bi bi-list-ol me-1"></i>Listado y Pagos (100 Números)
+        </button>
+      </li>
+      <li class="nav-item">
+        <button class="nav-link rounded-3 fw-semibold" id="tab-config-btn" data-bs-toggle="pill" data-bs-target="#tab-config">
+          <i class="bi bi-gear-fill me-1"></i>Configuración de la Rifa y Premio
+        </button>
+      </li>
+      <li class="nav-item">
+        <button class="nav-link rounded-3 fw-semibold text-danger" id="tab-peligro-btn" data-bs-toggle="pill" data-bs-target="#tab-peligro">
+          <i class="bi bi-exclamation-triangle-fill me-1"></i>Zona de Peligro / Nueva Rifa
+        </button>
+      </li>
+    </ul>
+
+    <div class="tab-content" id="adminTabsContent">
+
+      <!-- PESTAÑA 1: LISTADO Y GESTIÓN DE PAGOS -->
+      <div class="tab-pane fade show active" id="tab-numeros" role="tabpanel">
+        <div class="card border-0 rounded-4 shadow-sm">
+          <div class="card-header bg-white border-0 pt-4 px-4 pb-0">
+            <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3">
+              <div>
+                <h5 class="fw-bold mb-0">Control de Números y Pagos</h5>
+                <p class="text-muted small mb-0">Busca, filtra por estado y confirma los pagos recibidos.</p>
+              </div>
+
+              <!-- BOTONES DE EXPORTACIÓN Y ACCIONES -->
+              <div class="d-flex flex-wrap gap-2">
+                <button type="button" class="btn btn-outline-success btn-sm rounded-3 fw-semibold" id="btnExportarExcel">
+                  <i class="bi bi-file-earmark-excel-fill me-1"></i>Exportar a Excel / CSV
+                </button>
+              </div>
+            </div>
+
+            <!-- BARRA DE FILTROS DINÁMICOS -->
+            <div class="row g-2 mt-3 pb-3 border-bottom">
+              <div class="col-md-5">
+                <div class="input-group input-group-sm">
+                  <span class="input-group-text bg-light border-end-0"><i class="bi bi-search"></i></span>
+                  <input type="text" id="filtroTexto" class="form-control border-start-0 rounded-end-3" placeholder="Filtrar por número (ej: 05), nombre o documento..."/>
+                </div>
+              </div>
+              <div class="col-md-3">
+                <select id="filtroEstado" class="form-select form-select-sm rounded-3">
+                  <option value="todos">Todos los estados</option>
+                  <option value="available">🟢 Disponibles</option>
+                  <option value="reserved">🟡 Reservados (Pendientes de pago)</option>
+                  <option value="sold">🔴 Pagados (Confirmados)</option>
+                </select>
+              </div>
+              <div class="col-md-4 text-md-end text-muted small align-self-center">
+                Mostrando <strong id="lblCantFiltrados">100</strong> de 100 números
+              </div>
+            </div>
+          </div>
+
+          <div class="card-body p-4 pt-2">
+            <div class="table-responsive" style="max-height: 600px; overflow-y: auto;">
+              <table class="table table-hover align-middle mb-0">
+                <thead class="table-light sticky-top">
+                  <tr>
+                    <th scope="col" style="width: 80px;">Número</th>
+                    <th scope="col">Estado</th>
+                    <th scope="col">Estudiante / Participante</th>
+                    <th scope="col">Documento</th>
+                    <th scope="col">Teléfono / Email</th>
+                    <th scope="col">Carrera / Grupo</th>
+                    <th scope="col" class="text-end" style="width: 240px;">Acciones de Admin</th>
+                  </tr>
+                </thead>
+                <tbody id="tablaAdminNumerosTbody">
+                  <!-- Generado dinámicamente -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- PESTAÑA 2: CONFIGURACIÓN DE LA RIFA (PREMIO, IMÁGENES, FECHA) -->
+      <div class="tab-pane fade" id="tab-config" role="tabpanel">
+        <div class="row g-4">
+          <div class="col-lg-7">
+            <div class="card border-0 rounded-4 shadow-sm p-4">
+              <h5 class="fw-bold mb-3"><i class="bi bi-sliders me-2 text-primary"></i>Datos del Premio y Sorteo</h5>
+
+              <form id="formConfigRifa">
+                <div class="mb-3">
+                  <label for="cfgPremioNombre" class="form-label fw-semibold small">Nombre del Premio</label>
+                  <input type="text" class="form-control rounded-3" id="cfgPremioNombre" required/>
+                </div>
+
+                <div class="mb-3">
+                  <label for="cfgPremioDesc" class="form-label fw-semibold small">Descripción del Premio</label>
+                  <textarea class="form-control rounded-3" id="cfgPremioDesc" rows="3" required></textarea>
+                </div>
+
+                <div class="row g-3 mb-3">
+                  <div class="col-md-6">
+                    <label for="cfgFechaSorteo" class="form-label fw-semibold small">Fecha del Sorteo</label>
+                    <input type="text" class="form-control rounded-3" id="cfgFechaSorteo" placeholder="Ej: 30 de Noviembre de 2026"/>
+                  </div>
+                  <div class="col-md-6">
+                    <label for="cfgCondiciones" class="form-label fw-semibold small">Condiciones / Con qué lotería juega</label>
+                    <input type="text" class="form-control rounded-3" id="cfgCondiciones" placeholder="Ej: Dos últimas cifras Lotería de Cundinamarca"/>
+                  </div>
+                </div>
+
+                <div class="mb-3">
+                  <label for="cfgDetalles" class="form-label fw-semibold small">Detalles adicionales <span class="text-muted fw-normal">(uno por línea)</span></label>
+                  <textarea class="form-control rounded-3" id="cfgDetalles" rows="3" placeholder="Garantía de 1 año&#10;Incluye factura&#10;Entrega el día del sorteo"></textarea>
+                </div>
+
+                <button type="submit" class="btn btn-primary rounded-3 fw-semibold px-4">
+                  <i class="bi bi-save-fill me-1"></i>Guardar Cambios de la Rifa
+                </button>
+              </form>
+            </div>
+          </div>
+
+          <!-- SUBIDA DE HASTA 3 IMÁGENES -->
+          <div class="col-lg-5">
+            <div class="card border-0 rounded-4 shadow-sm p-4">
+              <h5 class="fw-bold mb-3"><i class="bi bi-images me-2 text-primary"></i>Imágenes del Premio (Máx. 3)</h5>
+              <p class="text-muted small">Carga hasta 3 fotos oficiales que los estudiantes verán en el modal de la página principal.</p>
+
+              <div class="mb-3">
+                <input type="file" id="cfgInputImagenes" class="form-control form-control-sm rounded-3" accept="image/*" multiple/>
+                <div class="form-text small">Formatos: JPG, PNG, WEBP. Selecciona hasta 3 imágenes.</div>
+              </div>
+
+              <!-- Vista previa de las 3 imágenes -->
+              <div class="row g-2" id="cfgPreviewImagenes">
+                <!-- Se llena con JS -->
+              </div>
+
+              <button type="button" class="btn btn-outline-danger btn-sm rounded-3 mt-3 d-none" id="btnBorrarImagenes">
+                <i class="bi bi-trash me-1"></i>Eliminar todas las imágenes
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- PESTAÑA 3: ZONA DE PELIGRO (NUEVA RIFA / REINICIAR) -->
+      <div class="tab-pane fade" id="tab-peligro" role="tabpanel">
+        <div class="card border-danger border-opacity-25 rounded-4 shadow-sm p-4 bg-white">
+          <div class="d-flex align-items-center gap-3 mb-3">
+            <div class="rounded-circle bg-danger bg-opacity-10 p-3 text-danger">
+              <i class="bi bi-exclamation-triangle-fill fs-3"></i>
+            </div>
+            <div>
+              <h5 class="fw-bold text-danger mb-0">Crear una Nueva Rifa (Eliminar la actual)</h5>
+              <p class="text-muted small mb-0">Esta acción borrará todas las reservas de números, los pagos y dejará los 100 números (00 al 99) totalmente disponibles para un nuevo sorteo.</p>
+            </div>
+          </div>
+
+          <div class="alert alert-warning small">
+            <strong>Atención:</strong> Una vez eliminada la rifa actual no se puede recuperar el historial a menos que hayas exportado previamente el archivo de Excel.
+          </div>
+
+          <div>
+            <button type="button" class="btn btn-danger rounded-3 fw-semibold px-4" id="btnIniciarNuevaRifa">
+              <i class="bi bi-arrow-repeat me-1"></i>Crear Nueva Rifa (Reiniciar números)
+            </button>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- MODAL DE CONFIRMACIÓN ESTRICTA PARA ELIMINAR / REINICIAR LA RIFA -->
+  <div class="modal fade" id="modalConfirmarEliminacion" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content border-0 rounded-4 shadow-lg">
+        <div class="modal-header border-0 px-4 pt-4 pb-0">
+          <h5 class="modal-title fw-bold text-danger">
+            <i class="bi bi-exclamation-triangle-fill me-2"></i>Confirmación requerida
+          </h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body px-4 pt-3 pb-2">
+          <p class="text-muted small">
+            Estás a punto de <strong>eliminar toda la información de la rifa actual</strong> (se liberarán todos los 100 números y se borrarán las reservas y pagos).
+          </p>
+          <p class="small fw-semibold mb-2">Para confirmar, escribe exactamente la siguiente frase:</p>
+          <div class="p-2 bg-light border rounded-3 text-center user-select-all fw-bold text-danger mb-3">
+            ELIMINAR RIFA ACTUAL
+          </div>
+          <input type="text" id="inputFraseConfirmacion" class="form-control rounded-3" placeholder="Escribe aquí la frase exacta..."/>
+          <div id="errorFraseConfirmacion" class="text-danger small mt-2 d-none">La frase no coincide exactamente.</div>
+        </div>
+        <div class="modal-footer border-0 px-4 pb-4 pt-2 d-flex gap-2">
+          <button type="button" class="btn btn-light rounded-3 flex-fill" data-bs-dismiss="modal">Cancelar</button>
+          <button type="button" class="btn btn-danger rounded-3 flex-fill fw-semibold" id="btnConfirmarEliminacionDefinitiva">
+            Eliminar y Crear Nueva Rifa
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- TOAST DE NOTIFICACIONES -->
+  <div class="toast-container position-fixed bottom-0 end-0 p-3">
+    <div id="adminToast" class="toast align-items-center text-bg-dark border-0 rounded-3" role="alert" aria-live="assertive" aria-atomic="true">
+      <div class="d-flex">
+        <div class="toast-body" id="adminToastMsg">Acción completada.</div>
+        <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Cerrar"></button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Bootstrap JS -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+  <!-- Custom JS Admin -->
+  <script src="admin.js"></script>
+</body>
+</html>
