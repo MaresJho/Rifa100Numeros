@@ -11,6 +11,9 @@ let adminCreds = {
   password: ''
 };
 
+// Variable para saber si el formulario de configuración ya se cargó por primera vez
+let configFormularioInicializado = false;
+
 // ─── MODALES Y TOAST ────────────────────────────────────────────────
 const modalConfirmarEliminacion = new bootstrap.Modal(document.getElementById('modalConfirmarEliminacion'));
 const adminToast                = new bootstrap.Toast(document.getElementById('adminToast'));
@@ -21,7 +24,8 @@ function notificar(msg) {
 }
 
 // ─── CARGAR DATOS DESDE EL SERVIDOR (/api/admin) ───────────────────
-async function cargarDatosServidor() {
+// Parámetro refrescarSoloTabla: si es true, NO toca los campos del formulario de configuración
+async function cargarDatosServidor(refrescarSoloTabla = false) {
   if (!adminCreds.user || !adminCreds.password) return;
 
   try {
@@ -39,15 +43,29 @@ async function cargarDatosServidor() {
     if (data.success) {
       numeros = data.numeros || {};
       premioData = data.config || {};
+
       renderKPIs();
       renderTablaNumeros();
-      cargarFormularioConfig();
+
+      // Solo cargamos los campos del formulario si NO es un refresco periódico
+      // o si es la primera vez que entra al dashboard
+      if (!refrescarSoloTabla || !configFormularioInicializado) {
+        // Verificar que el usuario no tenga el cursor en ningún campo del formulario
+        const activeEl = document.activeElement;
+        const formConfig = document.getElementById('formConfigRifa');
+        const userEstaEscribiendo = formConfig && formConfig.contains(activeEl);
+
+        if (!userEstaEscribiendo) {
+          cargarFormularioConfig();
+          configFormularioInicializado = true;
+        }
+      }
     } else {
       notificar(data.error || 'Sesión no válida.');
       cerrarSesionAdmin();
     }
   } catch (err) {
-    notificar('Error de conexión al cargar datos de administración.');
+    console.warn('Error en segundo plano refrescando tabla admin:', err.message);
   }
 }
 
@@ -60,7 +78,8 @@ function verificarSesionAdmin() {
       if (parsed.user && parsed.password) {
         adminCreds = parsed;
         mostrarDashboard();
-        cargarDatosServidor();
+        configFormularioInicializado = false;
+        cargarDatosServidor(false);
         return;
       }
     } catch (e) {}
@@ -83,6 +102,7 @@ function mostrarDashboard() {
 function cerrarSesionAdmin() {
   localStorage.removeItem('adminCredsRifa');
   adminCreds = { user: '', password: '' };
+  configFormularioInicializado = false;
   mostrarLogin();
 }
 
@@ -105,7 +125,8 @@ document.getElementById('adminLoginForm').addEventListener('submit', async (e) =
       adminCreds = { user: u, password: p };
       localStorage.setItem('adminCredsRifa', JSON.stringify(adminCreds));
       mostrarDashboard();
-      await cargarDatosServidor();
+      configFormularioInicializado = false;
+      await cargarDatosServidor(false);
       notificar('¡Bienvenido al Panel de Administración!');
     } else {
       errBox.textContent = data.error || 'Credenciales incorrectas.';
@@ -260,7 +281,7 @@ async function cambiarEstadoNumero(numStr, nuevoEstado) {
     const data = await res.json();
     if (data.success) {
       notificar(`Número ${numStr} cambiado a: ${nuevoEstado === 'sold' ? 'PAGADO' : 'PENDIENTE'}`);
-      await cargarDatosServidor();
+      await cargarDatosServidor(true);
     } else {
       notificar(data.error || 'Error al cambiar estado.');
     }
@@ -289,7 +310,7 @@ async function liberarNumeroAdmin(numStr) {
     const data = await res.json();
     if (data.success) {
       notificar(`Número ${numStr} liberado.`);
-      await cargarDatosServidor();
+      await cargarDatosServidor(true);
     } else {
       notificar(data.error || 'Error al liberar número.');
     }
@@ -380,7 +401,9 @@ document.getElementById('formConfigRifa').addEventListener('submit', async (e) =
     const data = await res.json();
     if (data.success) {
       notificar('✅ ¡Información de la rifa guardada correctamente en el servidor!');
-      await cargarDatosServidor();
+      // Actualizar datos en memoria
+      premioData = data.config || premioData;
+      renderPreviewImagenes();
     } else {
       notificar('❌ ' + (data.error || 'Error al guardar configuración.'));
     }
@@ -529,7 +552,7 @@ document.getElementById('btnConfirmarEliminacionDefinitiva').addEventListener('c
     const data = await res.json();
     if (data.success) {
       modalConfirmarEliminacion.hide();
-      await cargarDatosServidor();
+      await cargarDatosServidor(true);
       notificar('🎉 ¡Rifa reiniciada en el servidor! Todos los 100 números están libres.');
     } else {
       errBox.textContent = data.error || 'Error al reiniciar la rifa.';
@@ -544,9 +567,9 @@ document.getElementById('btnConfirmarEliminacionDefinitiva').addEventListener('c
 // ─── INIT ────────────────────────────────────────────────────────────
 verificarSesionAdmin();
 
-// Refresco periódico del admin cada 15 segundos
+// Refresco periódico SOLO de la tabla de números y pagos (pasa true para NO tocar los campos de texto del admin)
 setInterval(() => {
   if (adminCreds.user && adminCreds.password) {
-    cargarDatosServidor();
+    cargarDatosServidor(true);
   }
 }, 15000);
