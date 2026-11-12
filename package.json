@@ -1,0 +1,12 @@
+{
+  "name": "rifa-100-numeros",
+  "version": "1.0.0",
+  "description": "Rifa Virtual 00 al 99 con encriptacion y concurrencia",
+  "main": "index.html",
+  "scripts": {
+    "start": "serve ."
+  },
+  "dependencies": {
+    "@vercel/kv": "^3.0.0"
+  }
+}

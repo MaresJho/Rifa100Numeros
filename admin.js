@@ -1,32 +1,15 @@
 // =========================================
-//  PANEL DE ADMINISTRACIÓN — admin.js
+//  PANEL DE ADMINISTRACIÓN — admin.js (Conectado a /api/admin)
 // =========================================
 
 const FRASE_ELIMINACION_EXACTA = 'ELIMINAR RIFA ACTUAL';
 
-// ─── ESTADO LOCAL DE DATOS ──────────────────────────────────────────
 let numeros = {};
-for (let i = 0; i < 100; i++) {
-  const numStr = String(i).padStart(2, '0');
-  numeros[numStr] = { estado: 'available', participante: null };
-}
-
-let premioData = {
-  nombre: 'Premio Principal',
-  desc: 'Pronto se publicarán los detalles del premio.',
-  detalles: [],
-  imagenes: [],
-  fechaSorteo: '30 de Noviembre de 2026',
-  condicionesSorteo: 'Juega con los dos últimos números de la Lotería de Cundinamarca (sorteo de la noche).'
+let premioData = {};
+let adminCreds = {
+  user: '',
+  password: ''
 };
-
-// Credenciales oficiales de administración
-let adminConfig = {
-  usuario: 'Administrador',
-  password: 'Americana2026'
-};
-
-let adminAutenticado = false;
 
 // ─── MODALES Y TOAST ────────────────────────────────────────────────
 const modalConfirmarEliminacion = new bootstrap.Modal(document.getElementById('modalConfirmarEliminacion'));
@@ -37,71 +20,51 @@ function notificar(msg) {
   adminToast.show();
 }
 
-// ─── CARGAR DATOS DESDE LOCALSTORAGE ────────────────────────────────
-function cargarDatos() {
-  const guardadoNumeros = localStorage.getItem('rifaNumeros');
-  if (guardadoNumeros) {
-    try {
-      const parsed = JSON.parse(guardadoNumeros);
-      for (let i = 0; i < 100; i++) {
-        const numStr = String(i).padStart(2, '0');
-        if (parsed[numStr]) {
-          numeros[numStr] = parsed[numStr];
-        } else if (parsed[i]) {
-          numeros[numStr] = parsed[i];
-        }
-      }
-    } catch (e) {
-      console.warn('Error leyendo rifaNumeros:', e);
+// ─── CARGAR DATOS DESDE EL SERVIDOR (/api/admin) ───────────────────
+async function cargarDatosServidor() {
+  if (!adminCreds.user || !adminCreds.password) return;
+
+  try {
+    const res = await fetch('/api/admin', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        action: 'getData',
+        user: adminCreds.user,
+        password: adminCreds.password
+      })
+    });
+
+    const data = await res.json();
+    if (data.success) {
+      numeros = data.numeros || {};
+      premioData = data.config || {};
+      renderKPIs();
+      renderTablaNumeros();
+      cargarFormularioConfig();
+    } else {
+      notificar(data.error || 'Sesión no válida.');
+      cerrarSesionAdmin();
     }
+  } catch (err) {
+    notificar('Error de conexión al cargar datos de administración.');
   }
-
-  const guardadoPremio = localStorage.getItem('rifaPremio');
-  if (guardadoPremio) {
-    try {
-      const parsed = JSON.parse(guardadoPremio);
-      premioData = {
-        nombre: parsed.nombre || 'Premio Principal',
-        desc: parsed.desc || 'Pronto se publicarán los detalles del premio.',
-        detalles: Array.isArray(parsed.detalles) ? parsed.detalles : [],
-        imagenes: Array.isArray(parsed.imagenes) ? parsed.imagenes.slice(0, 3) : [],
-        fechaSorteo: parsed.fechaSorteo || '30 de Noviembre de 2026',
-        condicionesSorteo: parsed.condicionesSorteo || 'Juega con las dos últimas cifras de la lotería oficial.'
-      };
-    } catch (e) {
-      console.warn('Error leyendo rifaPremio:', e);
-    }
-  }
-
-  const guardadoAdmin = localStorage.getItem('rifaAdminConfig');
-  if (guardadoAdmin) {
-    try {
-      const parsed = JSON.parse(guardadoAdmin);
-      if (parsed.usuario && parsed.password) {
-        adminConfig = parsed;
-      }
-    } catch (e) {}
-  }
-}
-
-function guardarNumeros() {
-  localStorage.setItem('rifaNumeros', JSON.stringify(numeros));
-}
-
-function guardarPremio() {
-  localStorage.setItem('rifaPremio', JSON.stringify(premioData));
 }
 
 // ─── AUTENTICACIÓN ADMIN ────────────────────────────────────────────
 function verificarSesionAdmin() {
-  const sesion = sessionStorage.getItem('adminAutenticado');
-  if (sesion === 'true') {
-    adminAutenticado = true;
-    mostrarDashboard();
-  } else {
-    adminAutenticado = false;
-    mostrarLogin();
+  const guardado = sessionStorage.getItem('adminCreds');
+  if (guardado) {
+    try {
+      adminCreds = JSON.parse(guardado);
+      if (adminCreds.user && adminCreds.password) {
+        mostrarDashboard();
+        cargarDatosServidor();
+        return;
+      }
+    } catch (e) {}
   }
+  mostrarLogin();
 }
 
 function mostrarLogin() {
@@ -114,33 +77,47 @@ function mostrarDashboard() {
   document.getElementById('adminLoginSection').classList.add('d-none');
   document.getElementById('adminDashboardSection').classList.remove('d-none');
   document.getElementById('btnAdminLogout').classList.remove('d-none');
-  renderKPIs();
-  renderTablaNumeros();
-  cargarFormularioConfig();
 }
 
-document.getElementById('adminLoginForm').addEventListener('submit', (e) => {
+function cerrarSesionAdmin() {
+  sessionStorage.removeItem('adminCreds');
+  adminCreds = { user: '', password: '' };
+  mostrarLogin();
+}
+
+document.getElementById('adminLoginForm').addEventListener('submit', async (e) => {
   e.preventDefault();
   const u = document.getElementById('adminUserInput').value.trim();
   const p = document.getElementById('adminPassInput').value.trim();
   const errBox = document.getElementById('adminLoginError');
+  errBox.classList.add('d-none');
 
-  if (u === adminConfig.usuario && p === adminConfig.password) {
-    sessionStorage.setItem('adminAutenticado', 'true');
-    adminAutenticado = true;
-    errBox.classList.add('d-none');
-    mostrarDashboard();
-    notificar('¡Bienvenido al Panel de Administración!');
-  } else {
-    errBox.textContent = 'Usuario o contraseña de administrador incorrectos.';
+  try {
+    const res = await fetch('/api/admin', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'login', user: u, password: p })
+    });
+
+    const data = await res.json();
+    if (data.success) {
+      adminCreds = { user: u, password: p };
+      sessionStorage.setItem('adminCreds', JSON.stringify(adminCreds));
+      mostrarDashboard();
+      await cargarDatosServidor();
+      notificar('¡Bienvenido al Panel de Administración!');
+    } else {
+      errBox.textContent = data.error || 'Credenciales incorrectas.';
+      errBox.classList.remove('d-none');
+    }
+  } catch (err) {
+    errBox.textContent = 'Error de conexión con el servidor.';
     errBox.classList.remove('d-none');
   }
 });
 
 document.getElementById('btnAdminLogout').addEventListener('click', () => {
-  sessionStorage.removeItem('adminAutenticado');
-  adminAutenticado = false;
-  mostrarLogin();
+  cerrarSesionAdmin();
   notificar('Sesión de administrador finalizada.');
 });
 
@@ -149,8 +126,9 @@ function renderKPIs() {
   let disp = 0, res = 0, pag = 0;
   for (let i = 0; i < 100; i++) {
     const numStr = String(i).padStart(2, '0');
-    if (numeros[numStr].estado === 'available') disp++;
-    else if (numeros[numStr].estado === 'reserved') res++;
+    const n = numeros[numStr] || { estado: 'available' };
+    if (n.estado === 'available') disp++;
+    else if (n.estado === 'reserved') res++;
     else pag++;
   }
 
@@ -178,7 +156,7 @@ function renderTablaNumeros() {
       continue;
     }
 
-    // Filtro Texto (número, nombre, documento, carrera)
+    // Filtro Texto
     if (filtroTxt) {
       const matchNum = numStr.includes(filtroTxt);
       const matchNom = p && p.nombre ? p.nombre.toLowerCase().includes(filtroTxt) : false;
@@ -203,13 +181,11 @@ function renderTablaNumeros() {
       badgeEstado = `<span class="badge bg-danger-subtle text-danger border border-danger-subtle badge-status">🔴 Pagado (Vendido)</span>`;
     }
 
-    // Datos Participante
     const partNombre = p ? `<strong class="text-dark">${p.nombre}</strong>` : `<span class="text-muted small">— Disponible —</span>`;
     const partDoc    = p ? `<span class="small">${p.tipoDoc}: ${p.numDoc}</span>` : `<span class="text-muted small">—</span>`;
     const partCont   = p ? `<div class="small">${p.telefono || '—'}</div><div class="text-muted small">${p.email || ''}</div>` : `<span class="text-muted small">—</span>`;
     const partAcad   = p ? `<div class="small fw-semibold">${p.carrera || '—'}</div><div class="text-muted small">Grupo: ${p.grupo || '—'}</div>` : `<span class="text-muted small">—</span>`;
 
-    // Botones de acción del administrador
     let botonesAccion = '';
 
     if (item.estado === 'reserved') {
@@ -252,39 +228,74 @@ function renderTablaNumeros() {
   document.getElementById('lblCantFiltrados').textContent = countFiltrados;
 
   tbody.querySelectorAll('.btn-cambiar-estado').forEach(b => {
-    b.addEventListener('click', (e) => {
+    b.addEventListener('click', async (e) => {
       const numStr = e.currentTarget.dataset.num;
       const nuevo  = e.currentTarget.dataset.nuevo;
-      cambiarEstadoNumero(numStr, nuevo);
+      await cambiarEstadoNumero(numStr, nuevo);
     });
   });
 
   tbody.querySelectorAll('.btn-liberar-admin').forEach(b => {
-    b.addEventListener('click', (e) => {
+    b.addEventListener('click', async (e) => {
       const numStr = e.currentTarget.dataset.num;
-      liberarNumeroAdmin(numStr);
+      await liberarNumeroAdmin(numStr);
     });
   });
 }
 
-function cambiarEstadoNumero(numStr, nuevoEstado) {
-  if (!numeros[numStr]) return;
-  numeros[numStr].estado = nuevoEstado;
-  guardarNumeros();
-  renderKPIs();
-  renderTablaNumeros();
-  notificar(`Número ${numStr} cambiado a: ${nuevoEstado === 'sold' ? 'PAGADO' : 'PENDIENTE'}`);
+async function cambiarEstadoNumero(numStr, nuevoEstado) {
+  try {
+    const res = await fetch('/api/admin', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        action: 'cambiarEstado',
+        user: adminCreds.user,
+        password: adminCreds.password,
+        numero: numStr,
+        nuevoEstado
+      })
+    });
+
+    const data = await res.json();
+    if (data.success) {
+      notificar(`Número ${numStr} cambiado a: ${nuevoEstado === 'sold' ? 'PAGADO' : 'PENDIENTE'}`);
+      await cargarDatosServidor();
+    } else {
+      notificar(data.error || 'Error al cambiar estado.');
+    }
+  } catch (err) {
+    notificar('Error de conexión.');
+  }
 }
 
-function liberarNumeroAdmin(numStr) {
+async function liberarNumeroAdmin(numStr) {
   if (!confirm(`¿Deseas liberar el número ${numStr}? El registro actual del participante será eliminado y el número quedará disponible.`)) {
     return;
   }
-  numeros[numStr] = { estado: 'available', participante: null };
-  guardarNumeros();
-  renderKPIs();
-  renderTablaNumeros();
-  notificar(`Número ${numStr} liberado exitosamente.`);
+
+  try {
+    const res = await fetch('/api/admin', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        action: 'liberarAdmin',
+        user: adminCreds.user,
+        password: adminCreds.password,
+        numero: numStr
+      })
+    });
+
+    const data = await res.json();
+    if (data.success) {
+      notificar(`Número ${numStr} liberado.`);
+      await cargarDatosServidor();
+    } else {
+      notificar(data.error || 'Error al liberar número.');
+    }
+  } catch (err) {
+    notificar('Error de conexión.');
+  }
 }
 
 document.getElementById('filtroTexto').addEventListener('input', renderTablaNumeros);
@@ -292,7 +303,7 @@ document.getElementById('filtroEstado').addEventListener('change', renderTablaNu
 
 // ─── EXPORTAR A EXCEL / CSV ─────────────────────────────────────────
 document.getElementById('btnExportarExcel').addEventListener('click', () => {
-  let csvContent = '\uFEFF'; // BOM para que Excel lea caracteres en español (tildes, ñ)
+  let csvContent = '\uFEFF';
   csvContent += 'Numero,Estado,Nombre,TipoDocumento,NumeroDocumento,Telefono,Email,Carrera,Grupo\n';
 
   for (let i = 0; i < 100; i++) {
@@ -327,28 +338,51 @@ document.getElementById('btnExportarExcel').addEventListener('click', () => {
 
 // ─── CONFIGURACIÓN DE LA RIFA (PREMIO, FECHA, LOTERÍA, IMÁGENES) ────
 function cargarFormularioConfig() {
-  document.getElementById('cfgPremioNombre').value = premioData.nombre || '';
-  document.getElementById('cfgPremioDesc').value   = premioData.desc || '';
+  document.getElementById('cfgPremioNombre').value = premioData.nombrePremio || '';
+  document.getElementById('cfgPremioDesc').value   = premioData.descPremio || '';
   document.getElementById('cfgFechaSorteo').value  = premioData.fechaSorteo || '';
   document.getElementById('cfgCondiciones').value  = premioData.condicionesSorteo || '';
-  document.getElementById('cfgDetalles').value     = (premioData.detalles || []).join('\n');
+  document.getElementById('cfgDetalles').value     = (premioData.detallesPremio || []).join('\n');
   renderPreviewImagenes();
 }
 
-document.getElementById('formConfigRifa').addEventListener('submit', (e) => {
+document.getElementById('formConfigRifa').addEventListener('submit', async (e) => {
   e.preventDefault();
-  premioData.nombre            = document.getElementById('cfgPremioNombre').value.trim();
-  premioData.desc              = document.getElementById('cfgPremioDesc').value.trim();
-  premioData.fechaSorteo       = document.getElementById('cfgFechaSorteo').value.trim();
-  premioData.condicionesSorteo = document.getElementById('cfgCondiciones').value.trim();
-  premioData.detalles          = document.getElementById('cfgDetalles').value
-                                    .split('\n').map(d => d.trim()).filter(d => d.length > 0);
+  const nuevoPremio = {
+    nombre: document.getElementById('cfgPremioNombre').value.trim(),
+    desc: document.getElementById('cfgPremioDesc').value.trim(),
+    fechaSorteo: document.getElementById('cfgFechaSorteo').value.trim(),
+    condicionesSorteo: document.getElementById('cfgCondiciones').value.trim(),
+    detalles: document.getElementById('cfgDetalles').value
+                .split('\n').map(d => d.trim()).filter(d => d.length > 0),
+    imagenes: premioData.imagenes || []
+  };
 
-  guardarPremio();
-  notificar('Información de la rifa actualizada correctamente.');
+  try {
+    const res = await fetch('/api/admin', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        action: 'guardarConfig',
+        user: adminCreds.user,
+        password: adminCreds.password,
+        premio: nuevoPremio
+      })
+    });
+
+    const data = await res.json();
+    if (data.success) {
+      notificar('Información de la rifa actualizada en el servidor.');
+      await cargarDatosServidor();
+    } else {
+      notificar(data.error || 'Error al guardar configuración.');
+    }
+  } catch (err) {
+    notificar('Error de conexión.');
+  }
 });
 
-// Manejo de hasta 3 imágenes
+// Subida de imágenes
 document.getElementById('cfgInputImagenes').addEventListener('change', function () {
   const files = Array.from(this.files).slice(0, 3);
   if (files.length === 0) return;
@@ -359,11 +393,38 @@ document.getElementById('cfgInputImagenes').addEventListener('change', function 
     reader.readAsDataURL(file);
   }));
 
-  Promise.all(readers).then(base64Array => {
+  Promise.all(readers).then(async base64Array => {
     premioData.imagenes = base64Array;
-    guardarPremio();
-    renderPreviewImagenes();
-    notificar('Imágenes del premio actualizadas.');
+
+    const nuevoPremio = {
+      nombre: document.getElementById('cfgPremioNombre').value.trim(),
+      desc: document.getElementById('cfgPremioDesc').value.trim(),
+      fechaSorteo: document.getElementById('cfgFechaSorteo').value.trim(),
+      condicionesSorteo: document.getElementById('cfgCondiciones').value.trim(),
+      detalles: (document.getElementById('cfgDetalles').value || '').split('\n').filter(Boolean),
+      imagenes: base64Array
+    };
+
+    try {
+      const res = await fetch('/api/admin', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'guardarConfig',
+          user: adminCreds.user,
+          password: adminCreds.password,
+          premio: nuevoPremio
+        })
+      });
+
+      const data = await res.json();
+      if (data.success) {
+        notificar('Imágenes del premio actualizadas en el servidor.');
+        renderPreviewImagenes();
+      }
+    } catch (err) {
+      notificar('Error al guardar imágenes.');
+    }
   });
 
   this.value = '';
@@ -396,23 +457,45 @@ function renderPreviewImagenes() {
   });
 }
 
-document.getElementById('btnBorrarImagenes').addEventListener('click', () => {
+document.getElementById('btnBorrarImagenes').addEventListener('click', async () => {
   if (confirm('¿Deseas quitar todas las imágenes del premio?')) {
     premioData.imagenes = [];
-    guardarPremio();
-    renderPreviewImagenes();
-    notificar('Imágenes eliminadas.');
+    const nuevoPremio = {
+      nombre: premioData.nombrePremio,
+      desc: premioData.descPremio,
+      fechaSorteo: premioData.fechaSorteo,
+      condicionesSorteo: premioData.condicionesSorteo,
+      detalles: premioData.detallesPremio || [],
+      imagenes: []
+    };
+
+    try {
+      await fetch('/api/admin', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'guardarConfig',
+          user: adminCreds.user,
+          password: adminCreds.password,
+          premio: nuevoPremio
+        })
+      });
+      renderPreviewImagenes();
+      notificar('Imágenes eliminadas.');
+    } catch (err) {
+      notificar('Error al eliminar imágenes.');
+    }
   }
 });
 
-// ─── ZONA DE PELIGRO: CREAR NUEVA RIFA (CONFIRMACIÓN ESTRICTA) ─────
+// ─── ZONA DE PELIGRO: REINICIAR RIFA (/api/admin) ───────────────────
 document.getElementById('btnIniciarNuevaRifa').addEventListener('click', () => {
   document.getElementById('inputFraseConfirmacion').value = '';
   document.getElementById('errorFraseConfirmacion').classList.add('d-none');
   modalConfirmarEliminacion.show();
 });
 
-document.getElementById('btnConfirmarEliminacionDefinitiva').addEventListener('click', () => {
+document.getElementById('btnConfirmarEliminacionDefinitiva').addEventListener('click', async () => {
   const entrada = document.getElementById('inputFraseConfirmacion').value.trim();
   const errBox  = document.getElementById('errorFraseConfirmacion');
 
@@ -421,19 +504,39 @@ document.getElementById('btnConfirmarEliminacionDefinitiva').addEventListener('c
     return;
   }
 
-  // Reiniciar todos los 100 números (00 al 99)
-  for (let i = 0; i < 100; i++) {
-    const numStr = String(i).padStart(2, '0');
-    numeros[numStr] = { estado: 'available', participante: null };
-  }
-  guardarNumeros();
+  try {
+    const res = await fetch('/api/admin', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        action: 'reiniciarRifa',
+        user: adminCreds.user,
+        password: adminCreds.password,
+        frase: entrada
+      })
+    });
 
-  modalConfirmarEliminacion.hide();
-  renderKPIs();
-  renderTablaNumeros();
-  notificar('🎉 ¡Rifa reiniciada! Los 100 números están disponibles para un nuevo sorteo.');
+    const data = await res.json();
+    if (data.success) {
+      modalConfirmarEliminacion.hide();
+      await cargarDatosServidor();
+      notificar('🎉 ¡Rifa reiniciada en el servidor! Todos los 100 números están libres.');
+    } else {
+      errBox.textContent = data.error || 'Error al reiniciar la rifa.';
+      errBox.classList.remove('d-none');
+    }
+  } catch (err) {
+    errBox.textContent = 'Error de conexión con el servidor.';
+    errBox.classList.remove('d-none');
+  }
 });
 
 // ─── INIT ────────────────────────────────────────────────────────────
-cargarDatos();
 verificarSesionAdmin();
+
+// Refresco periódico del admin cada 15 segundos
+setInterval(() => {
+  if (adminCreds.user && adminCreds.password) {
+    cargarDatosServidor();
+  }
+}, 15000);

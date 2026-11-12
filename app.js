@@ -1,26 +1,25 @@
 // =========================================
-//  RIFA VIRTUAL — app.js (00 al 99)
+//  RIFA VIRTUAL — app.js (Conectado a Backend /api)
 // =========================================
 
 const INACTIVITY_LIMIT_MS = 5 * 60 * 1000; // 5 minutos
 
-// ─── ESTADO GLOBAL: NÚMEROS DEL 00 AL 99 (100 números) ─────────────
-const numeros = {};
+// ─── ESTADO EN MEMORIA ──────────────────────────────────────────────
+let numeros = {};
 for (let i = 0; i < 100; i++) {
   const numStr = String(i).padStart(2, '0');
   numeros[numStr] = { estado: 'available', participante: null };
 }
 
 let premioData = {
-  nombre: 'Premio Principal',
-  desc: 'Pronto se publicarán los detalles del premio.',
-  detalles: [],
+  nombrePremio: '🎁 Premio Principal',
+  descPremio: 'Pronto se publicarán los detalles del premio.',
+  detallesPremio: [],
   imagenes: [],
   fechaSorteo: '30 de Noviembre de 2026',
   condicionesSorteo: 'Juega con los dos últimos números de la Lotería de Cundinamarca (sorteo de la noche).'
 };
 
-let usuarios = {};       // { "CC-123456": { nombre, tipoDoc, numDoc, telefono, email } }
 let usuarioActual = null;
 let numeroSeleccionado = null;
 let inactivityTimer = null;
@@ -39,32 +38,32 @@ function mostrarNotificacion(mensaje) {
   sessionToast.show();
 }
 
-// ─── PREMIO E INFORMACIÓN DEL SORTEO (VISUALIZACIÓN) ────────────────
-function cargarPremio() {
-  const guardado = localStorage.getItem('rifaPremio');
-  if (guardado) {
-    try {
-      const parsed = JSON.parse(guardado);
-      premioData = {
-        nombre: parsed.nombre || 'Premio Principal',
-        desc: parsed.desc || 'Pronto se publicarán los detalles del premio.',
-        detalles: Array.isArray(parsed.detalles) ? parsed.detalles : [],
-        imagenes: Array.isArray(parsed.imagenes) ? parsed.imagenes.slice(0, 3) : [],
-        fechaSorteo: parsed.fechaSorteo || 'Próximamente por definir',
-        condicionesSorteo: parsed.condicionesSorteo || 'Juega con las dos últimas cifras de la lotería oficial.'
-      };
-    } catch (e) {
-      console.warn('No se pudo leer rifaPremio:', e);
+// ─── SINCRONIZACIÓN CON EL SERVIDOR (/api/rifa) ────────────────────
+async function cargarDatosServidor() {
+  try {
+    const res = await fetch('/api/rifa');
+    if (!res.ok) throw new Error('Error al conectar con la API');
+    const data = await res.json();
+
+    if (data.success) {
+      if (data.config) premioData = data.config;
+      if (data.numeros) numeros = data.numeros;
+
+      renderPremioVisual();
+      renderGrid();
+      actualizarMisNumerosBadge();
     }
+  } catch (err) {
+    console.warn('Usando estado local por fallo de red:', err.message);
   }
-  renderPremioVisual();
 }
 
+// ─── PREMIO E INFORMACIÓN DEL SORTEO ────────────────────────────────
 function renderPremioVisual() {
-  document.getElementById('premioNombreHero').textContent = '🎁 ' + premioData.nombre;
-  document.getElementById('verPremioModalLabel').textContent = '🎁 ' + premioData.nombre;
-  document.getElementById('premioNombreModal').textContent = premioData.nombre;
-  document.getElementById('premioDescModal').textContent = premioData.desc;
+  document.getElementById('premioNombreHero').textContent = premioData.nombrePremio || '🎁 Premio Principal';
+  document.getElementById('verPremioModalLabel').textContent = premioData.nombrePremio || '🎁 Premio Principal';
+  document.getElementById('premioNombreModal').textContent = premioData.nombrePremio || 'Premio Principal';
+  document.getElementById('premioDescModal').textContent = premioData.descPremio || '';
 
   document.getElementById('sorteoFechaTexto').textContent = premioData.fechaSorteo || 'Por definir';
   document.getElementById('sorteoCondicionesTexto').textContent = premioData.condicionesSorteo || 'Por definir';
@@ -72,8 +71,9 @@ function renderPremioVisual() {
   const listaEl = document.getElementById('premioListaDetallesModal');
   const detallesEl = document.getElementById('premioDetallesModal');
   listaEl.innerHTML = '';
-  if (premioData.detalles && premioData.detalles.length > 0) {
-    premioData.detalles.forEach(d => {
+  const detalles = premioData.detallesPremio || [];
+  if (detalles.length > 0) {
+    detalles.forEach(d => {
       const li = document.createElement('li');
       li.className = 'mb-1';
       li.innerHTML = `<i class="bi bi-check-circle-fill text-success me-2"></i>`;
@@ -141,32 +141,18 @@ function renderCarruselPremio() {
 }
 
 document.getElementById('btnVerPremio').addEventListener('click', () => {
-  cargarPremio();
+  renderPremioVisual();
   verPremioModal.show();
 });
 
-// ─── SESIÓN Y CONTROL DE INACTIVIDAD (5 MINUTOS) ────────────────────
-function cargarUsuarios() {
-  const guardado = localStorage.getItem('rifaUsuarios');
-  if (!guardado) return;
-  try {
-    usuarios = JSON.parse(guardado) || {};
-  } catch (e) {
-    console.warn('No se pudo leer rifaUsuarios:', e);
-  }
-}
-
-function guardarUsuarios() {
-  localStorage.setItem('rifaUsuarios', JSON.stringify(usuarios));
-}
-
+// ─── SESIÓN DE USUARIO ──────────────────────────────────────────────
 function claveUsuario(tipoDoc, numDoc) {
   return `${tipoDoc.trim().toUpperCase()}-${numDoc.trim()}`;
 }
 
 function iniciarSesion(usuario) {
   usuarioActual = usuario;
-  localStorage.setItem('rifaSesion', JSON.stringify({
+  localStorage.setItem('rifaSesionUsuario', JSON.stringify({
     usuario,
     lastActivity: Date.now()
   }));
@@ -177,7 +163,7 @@ function iniciarSesion(usuario) {
 
 function cerrarSesion(porInactividad = false) {
   usuarioActual = null;
-  localStorage.removeItem('rifaSesion');
+  localStorage.removeItem('rifaSesionUsuario');
   if (inactivityTimer) {
     clearTimeout(inactivityTimer);
     inactivityTimer = null;
@@ -197,7 +183,7 @@ function cerrarSesion(porInactividad = false) {
 function reiniciarTemporizadorInactividad() {
   if (!usuarioActual) return;
 
-  localStorage.setItem('rifaSesion', JSON.stringify({
+  localStorage.setItem('rifaSesionUsuario', JSON.stringify({
     usuario: usuarioActual,
     lastActivity: Date.now()
   }));
@@ -209,7 +195,7 @@ function reiniciarTemporizadorInactividad() {
 }
 
 function restaurarSesion() {
-  const guardado = localStorage.getItem('rifaSesion');
+  const guardado = localStorage.getItem('rifaSesionUsuario');
   if (!guardado) {
     actualizarUISesion();
     return;
@@ -226,11 +212,11 @@ function restaurarSesion() {
         cerrarSesion(true);
       }, INACTIVITY_LIMIT_MS - transcurrido);
     } else {
-      localStorage.removeItem('rifaSesion');
+      localStorage.removeItem('rifaSesionUsuario');
       actualizarUISesion();
     }
   } catch (e) {
-    localStorage.removeItem('rifaSesion');
+    localStorage.removeItem('rifaSesionUsuario');
     actualizarUISesion();
   }
 }
@@ -272,7 +258,7 @@ function obtenerNumerosDeUsuario(usuario) {
       if (keyPart === keyActual) {
         lista.push({
           numero: numStr,
-          estado: n.estado, // 'reserved' o 'sold'
+          estado: n.estado,
           carrera: n.participante.carrera || 'N/A',
           grupo: n.participante.grupo || 'N/A'
         });
@@ -339,45 +325,47 @@ function renderMisNumerosModal() {
   });
 
   tbody.querySelectorAll('.btn-liberar').forEach(btn => {
-    btn.addEventListener('click', (e) => {
+    btn.addEventListener('click', async (e) => {
       const numStr = e.currentTarget.dataset.num;
-      liberarNumeroUsuario(numStr);
+      await liberarNumeroUsuario(numStr);
     });
   });
 }
 
-function liberarNumeroUsuario(numStr) {
+async function liberarNumeroUsuario(numStr) {
   if (!usuarioActual) return;
-  const n = numeros[numStr];
-  if (!n || n.estado !== 'reserved') {
-    mostrarNotificacion('Solo puedes liberar números que se encuentren pendientes de pago.');
+
+  if (!confirm(`¿Estás seguro de que deseas liberar el número ${numStr}? Quedará disponible para que otra persona lo tome.`)) {
     return;
   }
 
-  const keyActual = claveUsuario(usuarioActual.tipoDoc, usuarioActual.numDoc);
-  const keyPart = n.participante ? claveUsuario(n.participante.tipoDoc, n.participante.numDoc) : '';
+  try {
+    const res = await fetch('/api/liberar', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ numero: numStr, usuario: usuarioActual })
+    });
 
-  if (keyPart !== keyActual) {
-    mostrarNotificacion('No tienes permiso para liberar este número.');
-    return;
-  }
-
-  if (confirm(`¿Estás seguro de que deseas liberar el número ${numStr}? Quedará disponible para que otra persona lo tome.`)) {
-    numeros[numStr] = { estado: 'available', participante: null };
-    localStorage.setItem('rifaNumeros', JSON.stringify(numeros));
+    const data = await res.json();
+    if (!data.success) {
+      mostrarNotificacion(data.error || 'No se pudo liberar el número.');
+      return;
+    }
 
     mostrarNotificacion(`Has liberado el número ${numStr}.`);
-    renderGrid();
-    actualizarMisNumerosBadge();
+    await cargarDatosServidor();
     renderMisNumerosModal();
+  } catch (err) {
+    mostrarNotificacion('Error de conexión al liberar el número.');
   }
 }
 
-document.getElementById('btnMisNumeros').addEventListener('click', () => {
+document.getElementById('btnMisNumeros').addEventListener('click', async () => {
   if (!usuarioActual) {
     abrirModalLogin();
     return;
   }
+  await cargarDatosServidor();
   renderMisNumerosModal();
   misNumerosModal.show();
 });
@@ -393,7 +381,7 @@ document.getElementById('btnCerrarSesion').addEventListener('click', () => {
   cerrarSesion(false);
 });
 
-// ─── MODALES DE LOGIN Y REGISTRO ────────────────────────────────────
+// ─── MODALES DE LOGIN Y REGISTRO CONTRA EL SERVIDOR (/api/usuarios) ─
 function abrirModalLogin() {
   const form = document.getElementById('loginForm');
   form.reset();
@@ -420,7 +408,8 @@ document.getElementById('btnVolverALogin').addEventListener('click', () => {
   setTimeout(() => abrirModalLogin(), 250);
 });
 
-document.getElementById('loginForm').addEventListener('submit', (e) => {
+// Submit Login
+document.getElementById('loginForm').addEventListener('submit', async (e) => {
   e.preventDefault();
   const form = e.target;
   const errorAlert = document.getElementById('loginErrorAlert');
@@ -431,25 +420,36 @@ document.getElementById('loginForm').addEventListener('submit', (e) => {
 
   const tipoDoc = document.getElementById('loginTipoDoc').value;
   const numDoc  = document.getElementById('loginNumDoc').value.trim();
-  const key     = claveUsuario(tipoDoc, numDoc);
 
-  const usuario = usuarios[key];
-  if (!usuario) {
-    errorAlert.textContent = 'No encontramos un usuario con ese documento. Por favor regístrate primero.';
+  try {
+    const res = await fetch('/api/usuarios', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'login', tipoDoc, numDoc })
+    });
+
+    const data = await res.json();
+    if (!data.success) {
+      errorAlert.textContent = data.error || 'Credenciales incorrectas.';
+      errorAlert.classList.remove('d-none');
+      return;
+    }
+
+    iniciarSesion(data.usuario);
+    loginModal.hide();
+    mostrarNotificacion(`Bienvenido, ${data.usuario.nombre}`);
+
+    if (numeroSeleccionado !== null) {
+      setTimeout(() => abrirModalReserva(numeroSeleccionado), 250);
+    }
+  } catch (err) {
+    errorAlert.textContent = 'Error de conexión con el servidor.';
     errorAlert.classList.remove('d-none');
-    return;
-  }
-
-  iniciarSesion(usuario);
-  loginModal.hide();
-  mostrarNotificacion(`Bienvenido, ${usuario.nombre}`);
-
-  if (numeroSeleccionado !== null) {
-    setTimeout(() => abrirModalReserva(numeroSeleccionado), 250);
   }
 });
 
-document.getElementById('registroUsuarioForm').addEventListener('submit', (e) => {
+// Submit Registro
+document.getElementById('registroUsuarioForm').addEventListener('submit', async (e) => {
   e.preventDefault();
   const form = e.target;
   const errorAlert = document.getElementById('regUserErrorAlert');
@@ -463,24 +463,31 @@ document.getElementById('registroUsuarioForm').addEventListener('submit', (e) =>
   const numDoc   = document.getElementById('regNumDoc').value.trim();
   const telefono = document.getElementById('regTelefono').value.trim();
   const email    = document.getElementById('regEmail').value.trim();
-  const key      = claveUsuario(tipoDoc, numDoc);
 
-  if (usuarios[key]) {
-    errorAlert.textContent = 'Ya existe una cuenta registrada con este tipo y número de documento.';
+  try {
+    const res = await fetch('/api/usuarios', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'register', nombre, tipoDoc, numDoc, telefono, email })
+    });
+
+    const data = await res.json();
+    if (!data.success) {
+      errorAlert.textContent = data.error || 'Error al crear la cuenta.';
+      errorAlert.classList.remove('d-none');
+      return;
+    }
+
+    iniciarSesion(data.usuario);
+    registroUsuarioModal.hide();
+    mostrarNotificacion(`Cuenta creada. ¡Bienvenido, ${data.usuario.nombre}!`);
+
+    if (numeroSeleccionado !== null) {
+      setTimeout(() => abrirModalReserva(numeroSeleccionado), 250);
+    }
+  } catch (err) {
+    errorAlert.textContent = 'Error de conexión con el servidor.';
     errorAlert.classList.remove('d-none');
-    return;
-  }
-
-  const nuevoUsuario = { nombre, tipoDoc, numDoc, telefono, email };
-  usuarios[key] = nuevoUsuario;
-  guardarUsuarios();
-
-  iniciarSesion(nuevoUsuario);
-  registroUsuarioModal.hide();
-  mostrarNotificacion(`Cuenta creada. ¡Bienvenido, ${nuevoUsuario.nombre}!`);
-
-  if (numeroSeleccionado !== null) {
-    setTimeout(() => abrirModalReserva(numeroSeleccionado), 250);
   }
 });
 
@@ -491,18 +498,19 @@ function renderGrid() {
 
   for (let i = 0; i < 100; i++) {
     const numStr = String(i).padStart(2, '0');
+    const n = numeros[numStr] || { estado: 'available', participante: null };
     const btn = document.createElement('button');
     btn.type        = 'button';
     btn.textContent = numStr;
-    btn.className   = `num-btn ${numeros[numStr].estado}`;
+    btn.className   = `num-btn ${n.estado}`;
     btn.dataset.num = numStr;
 
-    if (numeros[numStr].participante) {
-      const estadoTxt = numeros[numStr].estado === 'reserved' ? 'Reservado (Pendiente)' : 'Pagado';
-      btn.title = `${estadoTxt}: ${numeros[numStr].participante.nombre}`;
+    if (n.participante) {
+      const estadoTxt = n.estado === 'reserved' ? 'Reservado (Pendiente)' : 'Pagado';
+      btn.title = `${estadoTxt}: ${n.participante.nombre}`;
     }
 
-    if (numeros[numStr].estado === 'available') {
+    if (n.estado === 'available') {
       btn.addEventListener('click', () => manejarClickNumero(numStr));
     }
 
@@ -516,8 +524,9 @@ function actualizarContadores() {
   let available = 0, reserved = 0, sold = 0;
   for (let i = 0; i < 100; i++) {
     const numStr = String(i).padStart(2, '0');
-    if (numeros[numStr].estado === 'available') available++;
-    else if (numeros[numStr].estado === 'reserved') reserved++;
+    const n = numeros[numStr] || { estado: 'available' };
+    if (n.estado === 'available') available++;
+    else if (n.estado === 'reserved') reserved++;
     else sold++;
   }
   document.getElementById('countAvailable').textContent = available;
@@ -534,12 +543,15 @@ function manejarClickNumero(numStr) {
   abrirModalReserva(numStr);
 }
 
-// ─── MODAL DE RESERVA (CARRERA Y GRUPO) ─────────────────────────────
-function abrirModalReserva(numStr) {
+// ─── MODAL DE RESERVA (CARRERA Y GRUPO) CONTRA /api/reservar ────────
+async function abrirModalReserva(numStr) {
   if (!usuarioActual) {
     abrirModalLogin();
     return;
   }
+
+  // Refrescar datos del servidor antes de abrir
+  await cargarDatosServidor();
 
   if (numeros[numStr] && numeros[numStr].estado !== 'available') {
     mostrarNotificacion(`El número ${numStr} ya fue reservado por otra persona.`);
@@ -559,17 +571,10 @@ function abrirModalReserva(numStr) {
   registroModal.show();
 }
 
-document.getElementById('btnReservar').addEventListener('click', () => {
+document.getElementById('btnReservar').addEventListener('click', async () => {
   if (!usuarioActual) {
     registroModal.hide();
     abrirModalLogin();
-    return;
-  }
-
-  if (numeros[numeroSeleccionado] && numeros[numeroSeleccionado].estado !== 'available') {
-    alert(`El número ${numeroSeleccionado} ya no está disponible. Por favor elige otro.`);
-    registroModal.hide();
-    renderGrid();
     return;
   }
 
@@ -580,51 +585,46 @@ document.getElementById('btnReservar').addEventListener('click', () => {
   const carrera = document.getElementById('inputCarrera').value.trim();
   const grupo   = document.getElementById('inputGrupo').value.trim();
 
-  const datosReserva = {
-    ...usuarioActual,
-    carrera,
-    grupo
-  };
+  try {
+    const res = await fetch('/api/reservar', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        numero: numeroSeleccionado,
+        usuario: usuarioActual,
+        carrera,
+        grupo
+      })
+    });
 
-  numeros[numeroSeleccionado] = { estado: 'reserved', participante: datosReserva };
-  localStorage.setItem('rifaNumeros', JSON.stringify(numeros));
+    const data = await res.json();
+    if (!data.success) {
+      alert(data.error || 'No se pudo reservar el número.');
+      registroModal.hide();
+      await cargarDatosServidor();
+      return;
+    }
 
-  const numConfirmado = numeroSeleccionado;
-  numeroSeleccionado = null;
+    const numConfirmado = numeroSeleccionado;
+    numeroSeleccionado = null;
+    registroModal.hide();
 
-  registroModal.hide();
+    document.getElementById('confirmNumero').textContent = numConfirmado;
+    document.getElementById('confirmNombre').textContent = usuarioActual.nombre;
+    document.getElementById('confirmCarreraGrupo').textContent = `${carrera} · Grupo ${grupo}`;
 
-  document.getElementById('confirmNumero').textContent = numConfirmado;
-  document.getElementById('confirmNombre').textContent = datosReserva.nombre;
-  document.getElementById('confirmCarreraGrupo').textContent = `${carrera} · Grupo ${grupo}`;
-
-  setTimeout(() => confirmModal.show(), 300);
-  renderGrid();
-  actualizarMisNumerosBadge();
+    setTimeout(() => confirmModal.show(), 300);
+    await cargarDatosServidor();
+  } catch (err) {
+    alert('Error de conexión al procesar la reserva.');
+  }
 });
 
-// ─── CARGAR NÚMEROS DESDE STORAGE ───────────────────────────────────
-function cargarDesdeStorage() {
-  const guardado = localStorage.getItem('rifaNumeros');
-  if (!guardado) return;
-  try {
-    const datos = JSON.parse(guardado);
-    for (let i = 0; i < 100; i++) {
-      const numStr = String(i).padStart(2, '0');
-      if (datos[numStr]) {
-        numeros[numStr] = datos[numStr];
-      } else if (datos[i]) {
-        numeros[numStr] = datos[i];
-      }
-    }
-  } catch (e) {
-    console.warn('No se pudo leer rifaNumeros:', e);
-  }
-}
-
 // ─── INIT ────────────────────────────────────────────────────────────
-cargarDesdeStorage();
-cargarUsuarios();
-cargarPremio();
 restaurarSesion();
-renderGrid();
+cargarDatosServidor();
+
+// Auto-refresco cada 15 segundos para ver números reservados por otros usuarios en vivo
+setInterval(() => {
+  cargarDatosServidor();
+}, 15000);
