@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Rifa Virtual (00 al 99)</title>
+  <title>Rifa Pro-STUDIATON (00 al 99)</title>
 
   <!-- Bootstrap 5 -->
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet"/>
@@ -18,7 +18,7 @@
   <nav class="navbar navbar-expand-md navbar-dark" id="mainNav">
     <div class="container">
       <a class="navbar-brand fw-bold fs-4" href="index.html">
-        <i class="bi bi-ticket-perforated-fill me-2"></i>Rifa Virtual
+        <i class="bi bi-ticket-perforated-fill me-2 text-warning"></i>Rifa Pro-STUDIATON
       </a>
 
       <div class="d-flex align-items-center gap-2">
@@ -32,8 +32,11 @@
   <!-- HERO SECTION -->
   <section class="hero-section text-center py-5">
     <div class="container">
-      <h1 class="display-5 fw-bold text-white mb-2">🎉 ¡Participa y Gana!</h1>
-      <p class="text-white-50 mb-4 fs-5">Números del <strong>00</strong> al <strong>99</strong>. Selecciona tu número, ingresa tus datos y tu referencia de pago.</p>
+      <span class="badge bg-warning text-dark px-3 py-2 rounded-pill fw-bold mb-2">
+        <i class="bi bi-tag-fill me-1"></i>Valor por boleta: $30.000 COP (30k)
+      </span>
+      <h1 class="display-5 fw-bold text-white mb-2">🎉 Rifa Pro-STUDIATON</h1>
+      <p class="text-white-50 mb-4 fs-5">Números del <strong>00</strong> al <strong>99</strong>. Selecciona tu número, reporta tu pago de <strong>$30.000</strong> y participa.</p>
 
       <!-- Tarjeta visual del premio e información del sorteo -->
       <div class="premio-banner mx-auto mb-4 text-start">
@@ -183,7 +186,12 @@
               <i class="bi bi-ticket-detailed-fill me-2 text-primary"></i>Seleccionar Número
             </h5>
             <p class="text-muted small mb-0">Estás seleccionando el número:</p>
-            <div class="number-badge mt-1" id="selectedNumberBadge">—</div>
+            <div class="d-flex align-items-center gap-2 mt-1">
+              <div class="number-badge" id="selectedNumberBadge">—</div>
+              <span class="badge bg-success-subtle text-success border border-success-subtle fw-bold py-2 px-3 rounded-3">
+                <i class="bi bi-cash-stack me-1"></i>Valor: $30.000 COP
+              </span>
+            </div>
           </div>
           <button type="button" class="btn-close ms-auto" data-bs-dismiss="modal" aria-label="Cerrar"></button>
         </div>

@@ -10,12 +10,18 @@ for (let i = 0; i < 100; i++) {
 }
 
 let premioData = {
-  nombrePremio: '🎁 Premio Principal',
-  descPremio: 'Pronto se publicarán los detalles del premio.',
-  detallesPremio: [],
+  nombrePremio: 'Samsung Galaxy Tab A11 (modelo Wi-Fi de 8.7 pulgadas)',
+  descPremio: 'Rifa Pro-STUDIATON — Gran premio: Tablet Samsung Galaxy Tab A11 (modelo Wi-Fi de 8.7"). Valor por boleta: $30.000 COP (30k).',
+  detallesPremio: [
+    'Tablet Samsung Galaxy Tab A11 (Wi-Fi 8.7 pulgadas)',
+    'Valor por boleta: $30.000 COP (30k)',
+    'Juega con El Sinuano (sorteo de la noche) el 20 de noviembre',
+    'Total 100 números (del 00 al 99)',
+    'Entrega inmediata al ganador'
+  ],
   imagenes: [],
-  fechaSorteo: '30 de Noviembre de 2026',
-  condicionesSorteo: 'Juega con los dos últimos números de la lotería oficial.'
+  fechaSorteo: '20 de Noviembre',
+  condicionesSorteo: 'Juega con las dos últimas cifras de la lotería El Sinuano (sorteo de la noche) del 20 de noviembre.'
 };
 
 let numeroSeleccionado = null;
